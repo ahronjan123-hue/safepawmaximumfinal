@@ -1,0 +1,655 @@
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { SUPPORTED_COUNTRIES, getCountryByCode } from '../data/countries';
+import {
+  X,
+  Globe,
+  MapPin,
+  DollarSign,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Download,
+  Trash2,
+  Check,
+  Shield,
+  Phone,
+  Sliders,
+  Database,
+  ArrowRight,
+  Info,
+  Stethoscope,
+  Heart,
+  Building,
+  User,
+  Loader2,
+} from 'lucide-react';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+  const {
+    locationSettings,
+    currentCountry,
+    updateLocationSettings,
+    resetToDetectedLocation,
+    formatPrice,
+    isOnline,
+    isSimulatedOffline,
+    toggleSimulatedOffline,
+    syncQueue,
+    isSyncing,
+    syncOfflineQueue,
+    clearOfflineCache,
+    exportOfflineBackup,
+    pets,
+    healthRecords,
+    appointments,
+  } = useApp();
+
+  const { user, profile, switchRole, refreshProfile } = useAuth();
+  const [roleUpdating, setRoleUpdating] = useState(false);
+  const [roleSuccessMessage, setRoleSuccessMessage] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'location' | 'offline' | 'preferences'>('location');
+  const [selectedCountryCode, setSelectedCountryCode] = useState(
+    locationSettings.selectedCountryCode
+  );
+  const [isManualOverride, setIsManualOverride] = useState(
+    locationSettings.isManualOverride
+  );
+  const [customCity, setCustomCity] = useState(
+    locationSettings.customCity || currentCountry.defaultCity
+  );
+  const [customRegion, setCustomRegion] = useState(
+    locationSettings.customRegion || currentCountry.defaultRegion
+  );
+  const [distanceUnit, setDistanceUnit] = useState(locationSettings.distanceUnit);
+  const [weightUnit, setWeightUnit] = useState(locationSettings.weightUnit);
+  const [currencyOverrideCode, setCurrencyOverrideCode] = useState(
+    locationSettings.currencyOverrideCode || ''
+  );
+  const [autoSync, setAutoSync] = useState(locationSettings.autoSyncEnabled);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleCountrySelect = (code: string) => {
+    setSelectedCountryCode(code);
+    const country = getCountryByCode(code);
+    setCustomCity(country.defaultCity);
+    setCustomRegion(country.defaultRegion);
+    setDistanceUnit(country.distanceUnit);
+    setWeightUnit(country.weightUnit);
+  };
+
+  const handleSaveSettings = () => {
+    updateLocationSettings({
+      isManualOverride,
+      selectedCountryCode,
+      customCity,
+      customRegion,
+      distanceUnit,
+      weightUnit,
+      currencyOverrideCode: currencyOverrideCode || undefined,
+      autoSyncEnabled: autoSync,
+    });
+    setSavedSuccess(true);
+    setTimeout(() => {
+      setSavedSuccess(false);
+      onClose();
+    }, 800);
+  };
+
+  const handleResetDetected = () => {
+    resetToDetectedLocation();
+    const detected = getCountryByCode(locationSettings.detectedCountryCode);
+    setSelectedCountryCode(detected.code);
+    setIsManualOverride(false);
+    setCustomCity(detected.defaultCity);
+    setCustomRegion(detected.defaultRegion);
+    setDistanceUnit(detected.distanceUnit);
+    setWeightUnit(detected.weightUnit);
+    setCurrencyOverrideCode('');
+  };
+
+  // Preview price for standard visit ($45 USD)
+  const sampleUSD = 45;
+  const activePreviewCountry = getCountryByCode(
+    isManualOverride ? selectedCountryCode : locationSettings.detectedCountryCode
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto z-10 flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b border-stone-200 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+              <Sliders className="w-5 h-5 text-teal-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-stone-900">Application Settings</h2>
+              <p className="text-xs text-stone-500">
+                Regional location, distance and weight units & offline storage
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="flex items-center gap-1 border-b border-stone-200 px-6 pt-3 bg-stone-50 text-xs">
+          <button
+            onClick={() => setActiveTab('location')}
+            className={`pb-3 px-3 font-semibold transition border-b-2 flex items-center gap-1.5 ${
+              activeTab === 'location'
+                ? 'border-teal-600 text-teal-900'
+                : 'border-transparent text-stone-500 hover:text-stone-900'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            <span>Location & Units</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('offline')}
+            className={`pb-3 px-3 font-semibold transition border-b-2 flex items-center gap-1.5 ${
+              activeTab === 'offline'
+                ? 'border-teal-600 text-teal-900'
+                : 'border-transparent text-stone-500 hover:text-stone-900'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Offline Mode & Local Storage</span>
+            {syncQueue.length > 0 && (
+              <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-mono">
+                {syncQueue.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('preferences')}
+            className={`pb-3 px-3 font-semibold transition border-b-2 flex items-center gap-1.5 ${
+              activeTab === 'preferences'
+                ? 'border-teal-600 text-teal-900'
+                : 'border-transparent text-stone-500 hover:text-stone-900'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>Account & Role</span>
+            {profile?.role === 'veterinarian' && (
+              <span className="bg-teal-100 text-teal-800 text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">
+                Vet
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 space-y-6 flex-1">
+          {activeTab === 'location' && (
+            <div className="space-y-6">
+              {/* City / Region Customization */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
+                    Service Region & Location
+                  </h3>
+                  <p className="text-[11px] text-stone-500 mt-0.5">
+                    Configure your current city and district to discover nearby pet care providers and emergency services.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-stone-500" />
+                      City / Municipality
+                    </label>
+                    <input
+                      type="text"
+                      value={customCity}
+                      onChange={(e) => setCustomCity(e.target.value)}
+                      placeholder="e.g. Mandaluyong, Quezon City, Makati"
+                      className="w-full text-xs px-3 py-2 border border-stone-200 rounded-lg focus:outline-teal-600 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      State / Province / Region
+                    </label>
+                    <input
+                      type="text"
+                      value={customRegion}
+                      onChange={(e) => setCustomRegion(e.target.value)}
+                      placeholder="e.g. Metro Manila, NCR, Rizal"
+                      className="w-full text-xs px-3 py-2 border border-stone-200 rounded-lg focus:outline-teal-600 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Measurement Units */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 space-y-3">
+                <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
+                  Measurement Units
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-semibold text-stone-700 mb-1">
+                      Distance Unit
+                    </label>
+                    <select
+                      value={distanceUnit}
+                      onChange={(e) => setDistanceUnit(e.target.value as 'km' | 'mi')}
+                      className="w-full px-2.5 py-2 border border-stone-200 rounded-lg bg-white"
+                    >
+                      <option value="km">Kilometers (km)</option>
+                      <option value="mi">Miles (mi)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-stone-700 mb-1">
+                      Weight Unit
+                    </label>
+                    <select
+                      value={weightUnit}
+                      onChange={(e) => setWeightUnit(e.target.value as 'kg' | 'lbs')}
+                      className="w-full px-2.5 py-2 border border-stone-200 rounded-lg bg-white"
+                    >
+                      <option value="kg">Kilograms (kg)</option>
+                      <option value="lbs">Pounds (lbs)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Hotline Info */}
+              <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2 text-stone-700">
+                  <Phone className="w-4 h-4 text-rose-600" />
+                  <span>National 24/7 Emergency Triage & Trauma Hotline</span>
+                </div>
+                <strong className="text-teal-900 font-mono text-xs">{activePreviewCountry.emergencyHotline}</strong>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'offline' && (
+            <div className="space-y-5">
+              {/* Connectivity Simulator */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {isOnline ? (
+                      <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                        <Wifi className="w-4 h-4" />
+                      </div>
+                    ) : (
+                      <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                        <WifiOff className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-bold text-stone-900">
+                        {isOnline ? 'Online Connection Active' : 'Offline Mode Active'}
+                      </div>
+                      <div className="text-[11px] text-stone-500">
+                        {isOnline
+                          ? 'Real-time cloud synchronization active.'
+                          : 'Changes will be saved locally in your browser storage.'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleSimulatedOffline}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      isSimulatedOffline
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-stone-800 text-white border-stone-700'
+                    }`}
+                  >
+                    {isSimulatedOffline ? 'Switch to Online' : 'Simulate Offline Mode'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Local Storage Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <span className="text-stone-400 block text-[10px] uppercase font-semibold">
+                    Cached Pets
+                  </span>
+                  <strong className="text-base text-stone-900">{pets.length}</strong>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <span className="text-stone-400 block text-[10px] uppercase font-semibold">
+                    Health Records
+                  </span>
+                  <strong className="text-base text-stone-900">{healthRecords.length}</strong>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <span className="text-stone-400 block text-[10px] uppercase font-semibold">
+                    Appointments
+                  </span>
+                  <strong className="text-base text-stone-900">{appointments.length}</strong>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <span className="text-stone-400 block text-[10px] uppercase font-semibold">
+                    Queued Offline
+                  </span>
+                  <strong className="text-base text-amber-700">{syncQueue.length}</strong>
+                </div>
+              </div>
+
+              {/* Sync Queue Manager */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-teal-700" />
+                    <span className="text-xs font-bold text-stone-900">
+                      Offline Sync Queue ({syncQueue.length} items)
+                    </span>
+                  </div>
+                  {syncQueue.length > 0 && (
+                    <button
+                      onClick={syncOfflineQueue}
+                      disabled={isSyncing}
+                      className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                    >
+                      {isSyncing ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      )}
+                      <span>Sync Now</span>
+                    </button>
+                  )}
+                </div>
+                {syncQueue.length === 0 ? (
+                  <p className="text-xs text-stone-500">
+                    All local changes are fully synchronized with the SafePaw cloud database.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {syncQueue.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-2 bg-white rounded-lg border border-stone-200 text-[11px] flex items-center justify-between"
+                      >
+                        <span className="font-mono text-stone-700 capitalize">
+                          {item.type.replace('_', ' ')}
+                        </span>
+                        <span className="text-stone-400">
+                          {new Date(item.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Data Export & Backup Tools */}
+              <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={exportOfflineBackup}
+                  className="flex-1 py-2 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                >
+                  <Download className="w-4 h-4 text-stone-500" />
+                  <span>Export Offline Pet Passport Vault (.JSON)</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (
+                      confirm(
+                        'Clear local cache? This will reset all demo records to initial state.'
+                      )
+                    ) {
+                      clearOfflineCache();
+                      onClose();
+                    }
+                  }}
+                  className="py-2 px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-600" />
+                  <span>Reset Cache</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'preferences' && (
+            <div className="space-y-6">
+              {/* Account Overview Card */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-stone-50/70 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-stone-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                      {profile?.fullName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-stone-900">
+                        {profile?.fullName || 'Active User'}
+                      </div>
+                      <div className="text-xs text-stone-500 font-mono">
+                        {user?.email || profile?.email || 'Logged In'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                        profile?.role === 'veterinarian'
+                          ? 'bg-teal-100 text-teal-800 border-teal-300'
+                          : 'bg-stone-200 text-stone-700 border-stone-300'
+                      }`}
+                    >
+                      {profile?.role === 'veterinarian' ? (
+                        <>
+                          <Stethoscope className="w-3 h-3 text-teal-700" />
+                          <span>Veterinarian (Accredited)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Heart className="w-3 h-3 text-stone-600" />
+                          <span>Pet Owner</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Profile Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">
+                      Account ID
+                    </span>
+                    <span className="font-mono text-stone-700 truncate block mt-0.5">
+                      {profile?.id || user?.id || 'Local Session'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">
+                      Active Role Status
+                    </span>
+                    <span className="font-semibold text-stone-800 block mt-0.5">
+                      {profile?.role === 'veterinarian'
+                        ? 'Accredited Veterinary Doctor'
+                        : 'Pet Owner / Companion Guardian'}
+                    </span>
+                  </div>
+
+                  {profile?.role === 'veterinarian' && (
+                    <>
+                      <div className="p-3 rounded-xl bg-white border border-stone-200">
+                        <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">
+                          PRC License Number
+                        </span>
+                        <span className="font-mono text-stone-700 block mt-0.5">
+                          {profile?.licenseNumber || 'PRC-VET-VERIFIED'}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white border border-stone-200">
+                        <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">
+                          Affiliated Clinic
+                        </span>
+                        <span className="font-medium text-stone-700 block mt-0.5">
+                          {profile?.clinicName || 'Vets in Practice Animal Hospital (VIP)'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Role Switcher & Sync Card */}
+              <div className="p-5 rounded-2xl border border-teal-200 bg-teal-50/50 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-stone-900">
+                      Account Role & Access Mode
+                    </h3>
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Switch between <strong>Pet Owner</strong> and <strong>Pet Care Service Provider</strong> modes at any time. Your profile and permissions update immediately.
+                    </p>
+                  </div>
+                </div>
+
+                {roleSuccessMessage && (
+                  <div className="p-3 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>{roleSuccessMessage}</span>
+                  </div>
+                )}
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                  {profile?.role !== 'service_provider' && profile?.role !== 'veterinarian' ? (
+                    <button
+                      type="button"
+                      disabled={roleUpdating}
+                      onClick={async () => {
+                        setRoleUpdating(true);
+                        setRoleSuccessMessage(null);
+                        try {
+                          await switchRole('service_provider', {
+                            providerType: 'veterinary_clinic',
+                            businessName: 'Greenwood Animal Hospital & Wellness Center',
+                          });
+                          await refreshProfile();
+                          setRoleSuccessMessage('Successfully switched to Pet Care Service Provider!');
+                        } catch (err: any) {
+                          setRoleSuccessMessage(err.message || 'Failed to update role.');
+                        } finally {
+                          setRoleUpdating(false);
+                        }
+                      }}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      {roleUpdating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Building className="w-4 h-4" />
+                      )}
+                      <span>Switch Role to Pet Care Service Provider</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={roleUpdating}
+                      onClick={async () => {
+                        setRoleUpdating(true);
+                        setRoleSuccessMessage(null);
+                        try {
+                          await switchRole('pet_owner');
+                          await refreshProfile();
+                          setRoleSuccessMessage('Successfully changed role to Pet Owner.');
+                        } catch (err: any) {
+                          setRoleSuccessMessage(err.message || 'Failed to update role.');
+                        } finally {
+                          setRoleUpdating(false);
+                        }
+                      }}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-stone-700 hover:bg-stone-800 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      {roleUpdating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Heart className="w-4 h-4" />
+                      )}
+                      <span>Switch Role to Pet Owner</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setRoleUpdating(true);
+                      await refreshProfile();
+                      setRoleUpdating(false);
+                      setRoleSuccessMessage('Profile and data cache synchronized.');
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${roleUpdating ? 'animate-spin' : ''}`} />
+                    <span>Sync Profile</span>
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-teal-100 text-[11px] text-stone-500 leading-relaxed">
+                  <strong>Local Storage Active:</strong> All user records, appointments, health passports, and chat messages are encrypted and persisted reliably in your device storage.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between sticky bottom-0">
+          <div className="text-xs text-stone-500">
+            Selected Region: <strong>{customCity || 'National'}, {customRegion || 'Philippines'}</strong>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              className="px-5 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-xs transition flex items-center gap-1.5"
+            >
+              {savedSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Saved!</span>
+                </>
+              ) : (
+                <span>Save Preferences</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
