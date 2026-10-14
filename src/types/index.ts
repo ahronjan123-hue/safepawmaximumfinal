@@ -186,6 +186,8 @@ export interface Conversation {
   clinicAvatar: string;
   petId: string;
   petName: string;
+  ownerName?: string;
+  ownerAvatar?: string;
   lastMessage: string;
   lastTimestamp: string;
   unreadCount: number;

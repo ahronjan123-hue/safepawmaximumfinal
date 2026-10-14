@@ -280,36 +280,8 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
             </span>
           </div>
 
-          {/* Right Header: Notifications, Messages, Profile Menu */}
+          {/* Right Header: Profile Menu */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Notifications Button */}
-            <button
-              onClick={onOpenNotifications}
-              className="relative p-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition cursor-pointer"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Messages Button */}
-            <button
-              onClick={() => setActiveSidebarTab('messages')}
-              className="relative p-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition cursor-pointer"
-              title="Client Messages"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-500 text-stone-950 text-[9px] font-bold flex items-center justify-center">
-                3
-              </span>
-            </button>
-
-
-
             {/* Profile Menu Dropdown */}
             <div className="relative">
               <button

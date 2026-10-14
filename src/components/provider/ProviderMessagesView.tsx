@@ -43,13 +43,29 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
     }
   }, [conversations, selectedConvId]);
 
+  const getConversationOwner = (conv: Conversation): string => {
+    if (conv.ownerName && conv.ownerName !== 'Verified Pet Parent') return conv.ownerName;
+    const petAppt = appointments.find(
+      (a) => a.petId === conv.petId || a.petName?.toLowerCase() === conv.petName?.toLowerCase()
+    );
+    if (petAppt?.ownerName) return petAppt.ownerName;
+    const pet = pets.find(
+      (p) => p.id === conv.petId || p.name?.toLowerCase() === conv.petName?.toLowerCase()
+    );
+    if (pet?.ownerName) return pet.ownerName;
+    if (profile?.role === 'pet_owner' && profile.fullName) return profile.fullName;
+    return conv.ownerName || 'Sophia Rodriguez';
+  };
+
   // Filter conversations
   const filteredConversations = conversations.filter((c) => {
     const q = searchQuery.toLowerCase();
+    const ownerName = getConversationOwner(c).toLowerCase();
     const petMatch = c.petName?.toLowerCase().includes(q);
     const clinicMatch = c.clinicName?.toLowerCase().includes(q);
     const msgMatch = c.lastMessage?.toLowerCase().includes(q);
-    return !q || petMatch || clinicMatch || msgMatch;
+    const ownerMatch = ownerName.includes(q);
+    return !q || petMatch || clinicMatch || msgMatch || ownerMatch;
   });
 
   const activeConversation: Conversation | undefined =
@@ -68,7 +84,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
     ? pets.find((p) => p.id === activeConversation.petId || p.name.toLowerCase() === activeConversation.petName.toLowerCase())
     : undefined;
 
-  const guardianName = linkedAppointment?.ownerName || (profile?.role === 'pet_owner' ? profile.fullName : 'Sophia Rodriguez (Pet Guardian)');
+  const guardianName = activeConversation ? getConversationOwner(activeConversation) : 'Sophia Rodriguez';
 
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +92,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
 
     sendMessage(activeConversation.id, replyText.trim(), undefined, 'clinic');
     setReplyText('');
-    onShowToast(`Reply transmitted to pet guardian for ${activeConversation.petName}`);
+    onShowToast(`Reply transmitted to pet owner ${guardianName} (re: ${activeConversation.petName})`);
   };
 
   const senderRoleLabel =
@@ -142,6 +158,8 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
               filteredConversations.map((conv) => {
                 const isSelected = activeConversation?.id === conv.id;
                 const petAppt = appointments.find((a) => a.petId === conv.petId || a.petName === conv.petName);
+                const ownerName = getConversationOwner(conv);
+                const initial = ownerName.charAt(0).toUpperCase() || 'O';
 
                 return (
                   <button
@@ -154,22 +172,26 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center font-bold text-xs">
-                          {conv.petName?.charAt(0) || 'P'}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center font-bold text-xs shrink-0">
+                          {initial}
                         </div>
-                        <span className="text-xs font-bold text-white truncate max-w-[130px]">
-                          {conv.petName}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-white truncate block">
+                            {ownerName}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[10px] text-stone-500 font-mono">{conv.lastTimestamp || 'Recent'}</span>
+                      <span className="text-[10px] text-stone-500 font-mono shrink-0">{conv.lastTimestamp || 'Recent'}</span>
                     </div>
 
-                    <div className="text-[11px] text-teal-300 font-medium truncate flex items-center gap-1.5 mt-0.5">
-                      <span>{conv.clinicName}</span>
+                    <div className="text-[11px] text-stone-400 font-medium truncate flex items-center gap-1.5 mt-0.5">
+                      <span className="text-teal-300 font-semibold">Pet: {conv.petName}</span>
+                      <span className="text-stone-600">·</span>
+                      <span className="truncate">{conv.clinicName}</span>
                       {petAppt && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30 font-semibold">
-                          Visit Booked
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30 font-semibold shrink-0">
+                          Booked
                         </span>
                       )}
                     </div>
@@ -191,18 +213,25 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
             <div className="border-b border-stone-800 pb-3 space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/30 flex items-center justify-center font-black text-sm">
-                    {activeConversation.petName?.charAt(0) || 'P'}
+                  <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center font-black text-sm shrink-0">
+                    {guardianName.charAt(0).toUpperCase() || 'O'}
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                      <span>Patient: {activeConversation.petName}</span>
-                      {linkedPet?.breed && (
-                        <span className="text-xs font-normal text-stone-400">({linkedPet.breed})</span>
-                      )}
+                      <span>{guardianName}</span>
+                      <span className="text-[10px] font-bold text-teal-300 bg-teal-950/80 border border-teal-800/80 px-2 py-0.5 rounded-full">
+                        Pet Owner
+                      </span>
                     </h3>
-                    <div className="text-xs text-stone-400">
-                      Guardian: <strong className="text-stone-200">{guardianName}</strong> · Clinic: <span className="text-teal-300">{activeConversation.clinicName}</span>
+                    <div className="text-xs text-stone-400 flex items-center gap-1.5 flex-wrap">
+                      <span>Patient:</span>
+                      <strong className="text-stone-200">{activeConversation.petName}</strong>
+                      {linkedPet?.breed && (
+                        <span className="text-stone-400">({linkedPet.breed})</span>
+                      )}
+                      <span className="text-stone-600">·</span>
+                      <span>Clinic:</span>
+                      <span className="text-teal-300">{activeConversation.clinicName}</span>
                     </div>
                   </div>
                 </div>
@@ -210,7 +239,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Secure Patient Channel
+                    Pet Owner Direct Channel
                   </span>
                 </div>
               </div>
@@ -249,7 +278,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                     >
                       <div className="flex items-center gap-1.5 mb-1 px-1">
                         <span className="text-[10px] font-semibold text-stone-400">
-                          {isFromClinic ? `${senderRoleLabel} (You)` : `${guardianName} (Pet Guardian)`}
+                          {isFromClinic ? `${senderRoleLabel} (You)` : `${guardianName} (Pet Owner)`}
                         </span>
                         <span className="text-[9px] text-stone-500 font-mono">{m.timestamp}</span>
                       </div>
@@ -315,7 +344,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder={`Write your professional reply to ${guardianName}...`}
+                  placeholder={`Write your professional reply to pet owner ${guardianName}...`}
                   className="flex-1 bg-stone-900 border border-stone-800 rounded-2xl px-4 py-3 text-xs text-white placeholder-stone-500 focus:outline-hidden focus:border-teal-500 focus:ring-1 focus:ring-teal-500/50"
                 />
                 <button

@@ -1037,11 +1037,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deletePet = (id: string) => {
     setPets((prev) => {
       const remaining = prev.filter((p) => p.id !== id);
-      if (selectedPetId === id && remaining.length > 0) {
-        setSelectedPetId(remaining[0].id);
+      if (selectedPetId === id) {
+        setSelectedPetId(remaining.length > 0 ? remaining[0].id : '');
       }
       return remaining;
     });
+    setHealthRecords((prev) => prev.filter((r) => r.petId !== id));
+    setAppointments((prev) => prev.filter((a) => a.petId !== id));
+    setConversations((prev) => prev.filter((c) => c.petId !== id));
   };
 
   // Appointment Double Booking / Conflict Check
@@ -1453,6 +1456,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return conversations[existingIndex].id;
     }
 
+    const ownerName = pet?.ownerName || (profile?.fullName ? profile.fullName : 'Sophia Rodriguez');
+
     const newConvId = generateUUID();
     const newConv: Conversation = {
       id: newConvId,
@@ -1461,6 +1466,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       clinicAvatar: clinic.image,
       petId: targetPetId,
       petName: targetPetName,
+      ownerName,
       lastMessage: 'Direct communication channel opened.',
       lastTimestamp: 'Just now',
       unreadCount: 0,
