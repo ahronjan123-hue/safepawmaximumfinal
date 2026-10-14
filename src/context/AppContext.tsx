@@ -15,7 +15,12 @@ import {
   LocationSettings,
   UserRole,
   VetUserSession,
+  ProviderReview,
+  AdoptionInquiry,
+  ShelterAnimalRecord,
+  LostPetContactRequest,
 } from '../types';
+
 import {
   INITIAL_PETS,
   INITIAL_CLINICS,
@@ -128,12 +133,45 @@ interface AppContextType {
   clearOfflineCache: () => void;
   exportOfflineBackup: () => void;
 
+  // Reviews & Ratings
+  reviews: ProviderReview[];
+  addReview: (review: Omit<ProviderReview, 'id' | 'date'>) => void;
+  replyToReview: (reviewId: string, replyText: string) => void;
+
+  // Favorites
+  favoriteProviderIds: string[];
+  toggleFavoriteProvider: (providerId: string) => void;
+
+  // Adoption Inquiries
+  adoptionInquiries: AdoptionInquiry[];
+  submitAdoptionInquiry: (inquiry: Omit<AdoptionInquiry, 'id' | 'submittedAt' | 'status'>) => void;
+  updateAdoptionInquiryStatus: (id: string, status: 'approved' | 'declined') => void;
+
+  // Shelter Animal Records
+  shelterAnimals: ShelterAnimalRecord[];
+  addShelterAnimal: (animal: Omit<ShelterAnimalRecord, 'id'>) => void;
+  updateShelterAnimalStatus: (id: string, status: ShelterAnimalRecord['status']) => void;
+
+  // Lost & Found Contact Requests
+  contactRequests: LostPetContactRequest[];
+  sendLostPetContactRequest: (req: Omit<LostPetContactRequest, 'id' | 'sentAt' | 'posterApproved'>) => void;
+  markPetAsReunited: (reportId: string) => void;
+
+  // Provider Verification & Payouts
+  providerVerificationStatus: 'pending' | 'approved' | 'rejected';
+  submitProviderVerification: (idDoc: string, licenseDoc: string) => void;
+  simulateVerifyProvider: (status: 'approved' | 'rejected') => void;
+  payoutStatus: 'available' | 'requested' | 'transferred';
+  requestPayout: () => void;
+  payForAppointment: (appointmentId: string, paymentMethod: string) => void;
+
   // Navigation
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   preselectedClinicId: string | null;
   setPreselectedClinicId: (id: string | null) => void;
 }
+
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -362,6 +400,335 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const adoptablePets = INITIAL_ADOPTABLE_PETS;
+
+  // Reviews & Ratings
+  const [reviews, setReviews] = useState<ProviderReview[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_reviews_v6');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'rev-1',
+          providerId: 'provider-grooming-01',
+          authorName: 'Sophia Rodriguez',
+          petName: 'Buddy',
+          rating: 5,
+          comment: 'Stylist Carlo did an extraordinary job with Buddy! His coat is super soft, trimmed perfectly, and smelling great. Gentle and stress-free.',
+          date: '2026-10-06',
+          serviceName: 'Full Luxury Spa Grooming (Cut, Bath & Nails)',
+          reply: {
+            text: 'Thank you so much Sophia! Buddy was such a sweet boy during his bath. Looking forward to seeing you both again!',
+            date: '2026-10-06',
+          },
+        },
+        {
+          id: 'rev-2',
+          providerId: '00000000-0000-0000-0000-000000000001',
+          authorName: 'Sophia Rodriguez',
+          petName: 'Buddy',
+          rating: 5,
+          comment: 'Dr. Christian David and the VIP hospital team are thorough, compassionate, and transparent with care. Outstanding facility.',
+          date: '2026-09-28',
+          serviceName: 'Comprehensive Physical Examination',
+          reply: {
+            text: 'Thank you Sophia! Glad Buddy is doing great and staying active.',
+            date: '2026-09-29',
+          },
+        },
+        {
+          id: 'rev-3',
+          providerId: 'provider-walking-01',
+          authorName: 'Elena Santos',
+          petName: 'Milo',
+          rating: 5,
+          comment: 'Urban Paws dog walkers are always punctual, send GPS route tracking, and gave Milo great exercise and plenty of water.',
+          date: '2026-10-10',
+          serviceName: 'Solo Neighborhood Dog Walk (45 mins)',
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  // Favorite Providers
+  const [favoriteProviderIds, setFavoriteProviderIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_favorites_v6');
+      return saved ? JSON.parse(saved) : ['00000000-0000-0000-0000-000000000001', 'provider-grooming-01'];
+    } catch {
+      return ['00000000-0000-0000-0000-000000000001'];
+    }
+  });
+
+  // Adoption Inquiries
+  const [adoptionInquiries, setAdoptionInquiries] = useState<AdoptionInquiry[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_inquiries_v6');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'inq-1',
+          petId: 'sa-1',
+          petName: 'Bramble',
+          petSpecies: 'Dog',
+          petPhotoUrl: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=600&q=80',
+          applicantName: 'Joshua Ramos',
+          applicantEmail: 'joshua.ramos@example.ph',
+          applicantPhone: '+63 917 882 1290',
+          householdInfo: 'Single family house with 6ft perimeter fence in Marikina Heights. 1 friendly neutered senior Labrador.',
+          notes: 'Looking for an energetic companion for family weekend park runs.',
+          submittedAt: '2026-10-12T14:30:00.000Z',
+          status: 'pending',
+        },
+        {
+          id: 'inq-2',
+          petId: 'sa-2',
+          petName: 'Cleo',
+          petSpecies: 'Cat',
+          petPhotoUrl: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=600&q=80',
+          applicantName: 'Danica Tan',
+          applicantEmail: 'danica.tan@gmail.com',
+          applicantPhone: '+63 920 441 8932',
+          householdInfo: 'Pet-friendly 2-bedroom condo in BGC with meshed safety windows and cat scratching gyms.',
+          notes: 'Remote designer looking for a calm cuddly indoor cat companion.',
+          submittedAt: '2026-10-11T10:15:00.000Z',
+          status: 'approved',
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  // Shelter Animal Records
+  const [shelterAnimals, setShelterAnimals] = useState<ShelterAnimalRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_shelter_animals_v6');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'sa-1',
+          name: 'Bramble',
+          species: 'Dog',
+          breed: 'Aspin / Labrador Mix',
+          photoUrl: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=600&q=80',
+          intakeDate: '2026-08-14',
+          intakeReason: 'Rescued from flooded construction lot in Katipunan Valley',
+          status: 'Available',
+          healthNotes: 'Fully treated for mange, heartworm negative, clear stool, full strength restored.',
+          vaccinations: ['Rabies (Valid)', 'DHPPi Core 6-in-1', 'Bordetella'],
+          gender: 'Male',
+          age: '1.5 years',
+          spayedNeutered: true,
+        },
+        {
+          id: 'sa-2',
+          name: 'Cleo',
+          species: 'Cat',
+          breed: 'Calico Puspin Shorthair',
+          photoUrl: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=600&q=80',
+          intakeDate: '2026-09-02',
+          intakeReason: 'Orphaned stray kitten surrendered to sanctuary clinic',
+          status: 'Available',
+          healthNotes: 'Healthy, playful, dewormed 3x, clear fecal test, excellent appetite.',
+          vaccinations: ['Feline 4-Way Core (Valid)', 'Rabies (Valid)'],
+          gender: 'Female',
+          age: '8 months',
+          spayedNeutered: true,
+        },
+        {
+          id: 'sa-3',
+          name: 'Toby',
+          species: 'Dog',
+          breed: 'Beagle / Terrier Mix',
+          photoUrl: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=600&q=80',
+          intakeDate: '2026-09-20',
+          intakeReason: 'Abandoned roadside; rescued by volunteer dispatch van',
+          status: 'Pending Adoption',
+          healthNotes: 'Mild ear mites treated successfully with topical medication, healthy weight.',
+          vaccinations: ['Rabies (Valid)', 'DHPPi Core 6-in-1'],
+          gender: 'Male',
+          age: '2 years',
+          spayedNeutered: true,
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  // Lost Pet Contact Requests
+  const [contactRequests, setContactRequests] = useState<LostPetContactRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_contact_requests_v6');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Provider Verification Status
+  const [providerVerificationStatus, setProviderVerificationStatus] = useState<'pending' | 'approved' | 'rejected'>('approved');
+  // Provider Payout Status
+  const [payoutStatus, setPayoutStatus] = useState<'available' | 'requested' | 'transferred'>('available');
+
+  const addReview = (review: Omit<ProviderReview, 'id' | 'date'>) => {
+    const newRev: ProviderReview = {
+      ...review,
+      id: 'rev-' + Date.now(),
+      date: new Date().toISOString().split('T')[0],
+    };
+    const nextReviews = [newRev, ...reviews];
+    setReviews(nextReviews);
+    try {
+      localStorage.setItem('safepaw_reviews_v6', JSON.stringify(nextReviews));
+    } catch {}
+
+    // Link review back to appointment if bookingId exists
+    if (review.bookingId) {
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === review.bookingId
+            ? { ...a, reviewRating: review.rating, reviewComment: review.comment, reviewedAt: new Date().toISOString() }
+            : a
+        )
+      );
+    }
+  };
+
+  const replyToReview = (reviewId: string, replyText: string) => {
+    const updated = reviews.map((r) =>
+      r.id === reviewId
+        ? { ...r, reply: { text: replyText, date: new Date().toISOString().split('T')[0] } }
+        : r
+    );
+    setReviews(updated);
+    try {
+      localStorage.setItem('safepaw_reviews_v6', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const toggleFavoriteProvider = (providerId: string) => {
+    setFavoriteProviderIds((prev) => {
+      const updated = prev.includes(providerId)
+        ? prev.filter((id) => id !== providerId)
+        : [...prev, providerId];
+      try {
+        localStorage.setItem('safepaw_favorites_v6', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const submitAdoptionInquiry = (inquiry: Omit<AdoptionInquiry, 'id' | 'submittedAt' | 'status'>) => {
+    const newInq: AdoptionInquiry = {
+      ...inquiry,
+      id: 'inq-' + Date.now(),
+      submittedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    const updated = [newInq, ...adoptionInquiries];
+    setAdoptionInquiries(updated);
+    try {
+      localStorage.setItem('safepaw_inquiries_v6', JSON.stringify(updated));
+    } catch {}
+    sendSimulatedPushNotification(
+      'Adoption Application Received',
+      `Application for ${inquiry.petName} submitted to PawHaven Animal Sanctuary. Review within 24-48 hours.`,
+      'shelters'
+    );
+  };
+
+  const updateAdoptionInquiryStatus = (id: string, status: 'approved' | 'declined') => {
+    const updated = adoptionInquiries.map((inq) =>
+      inq.id === id ? { ...inq, status } : inq
+    );
+    setAdoptionInquiries(updated);
+    try {
+      localStorage.setItem('safepaw_inquiries_v6', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const addShelterAnimal = (animal: Omit<ShelterAnimalRecord, 'id'>) => {
+    const newAnimal: ShelterAnimalRecord = {
+      ...animal,
+      id: 'sa-' + Date.now(),
+    };
+    const updated = [newAnimal, ...shelterAnimals];
+    setShelterAnimals(updated);
+    try {
+      localStorage.setItem('safepaw_shelter_animals_v6', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const updateShelterAnimalStatus = (id: string, status: ShelterAnimalRecord['status']) => {
+    const updated = shelterAnimals.map((a) => (a.id === id ? { ...a, status } : a));
+    setShelterAnimals(updated);
+    try {
+      localStorage.setItem('safepaw_shelter_animals_v6', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const sendLostPetContactRequest = (req: Omit<LostPetContactRequest, 'id' | 'sentAt' | 'posterApproved'>) => {
+    const newReq: LostPetContactRequest = {
+      ...req,
+      id: 'req-' + Date.now(),
+      sentAt: new Date().toISOString(),
+      posterApproved: false,
+    };
+    const updated = [newReq, ...contactRequests];
+    setContactRequests(updated);
+    try {
+      localStorage.setItem('safepaw_contact_requests_v6', JSON.stringify(updated));
+    } catch {}
+    sendSimulatedPushNotification(
+      'Secure Sighting Inquiry Sent',
+      `Your message regarding "${req.petName}" was securely forwarded to the poster without exposing personal contact details until they consent.`,
+      'shelters'
+    );
+  };
+
+  const markPetAsReunited = (reportId: string) => {
+    setLostPets((prev) => {
+      const updated = prev.map((p) =>
+        p.id === reportId ? { ...p, status: 'reunited' as const } : p
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.LOST_PETS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    sendSimulatedPushNotification(
+      'Celebration: Pet Reunited!',
+      'Wonderful news! The pet was safely marked as reunited with their family.',
+      'shelters'
+    );
+  };
+
+  const submitProviderVerification = (_idDoc: string, _licenseDoc: string) => {
+    setProviderVerificationStatus('pending');
+  };
+
+  const simulateVerifyProvider = (status: 'approved' | 'rejected') => {
+    setProviderVerificationStatus(status);
+  };
+
+  const requestPayout = () => {
+    setPayoutStatus('requested');
+    setTimeout(() => {
+      setPayoutStatus('transferred');
+    }, 2500);
+  };
+
+  const payForAppointment = (appointmentId: string, _paymentMethod: string) => {
+    setAppointments((prev) => {
+      const updated = prev.map((a) =>
+        a.id === appointmentId ? { ...a, paymentStatus: 'paid' as const } : a
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   // Offline queue
   const [syncQueue, setSyncQueue] = useState<OfflineSyncQueueItem[]>(() => {
@@ -1212,12 +1579,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clearOfflineCache,
         exportOfflineBackup,
 
+        // Reviews & Ratings
+        reviews,
+        addReview,
+        replyToReview,
+
+        // Favorites
+        favoriteProviderIds,
+        toggleFavoriteProvider,
+
+        // Adoption Inquiries
+        adoptionInquiries,
+        submitAdoptionInquiry,
+        updateAdoptionInquiryStatus,
+
+        // Shelter Animal Records
+        shelterAnimals,
+        addShelterAnimal,
+        updateShelterAnimalStatus,
+
+        // Lost & Found Contact Requests
+        contactRequests,
+        sendLostPetContactRequest,
+        markPetAsReunited,
+
+        // Provider Verification & Payouts
+        providerVerificationStatus,
+        submitProviderVerification,
+        simulateVerifyProvider,
+        payoutStatus,
+        requestPayout,
+        payForAppointment,
+
         // Navigation
         currentTab,
         setCurrentTab,
         preselectedClinicId,
         setPreselectedClinicId,
       }}
+
     >
       {children}
     </AppContext.Provider>

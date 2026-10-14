@@ -120,6 +120,9 @@ export interface Appointment {
   rejectionReason?: string;
   completedAt?: string;
   clinicalSummary?: string;
+  reviewRating?: number;
+  reviewComment?: string;
+  reviewedAt?: string;
 }
 
 export type HealthRecordType = 'vaccine' | 'medication' | 'lab_result' | 'checkup' | 'surgery';
@@ -271,7 +274,65 @@ export interface LocationSettings {
 
 export type ProviderServiceType = 'veterinary_clinic' | 'grooming_salon' | 'rescue_shelter' | 'animal_shelter';
 
-export type UserRole = 'pet_owner' | 'service_provider' | 'veterinarian';
+export type UserRole = 'pet_owner' | 'service_provider' | 'veterinarian' | 'shelter_rescuer';
+
+export interface ProviderReview {
+  id: string;
+  providerId: string;
+  bookingId?: string;
+  authorName: string;
+  petName?: string;
+  rating: number; // 1-5
+  comment: string;
+  date: string;
+  serviceName?: string;
+  reply?: {
+    text: string;
+    date: string;
+  };
+}
+
+export interface AdoptionInquiry {
+  id: string;
+  petId: string;
+  petName: string;
+  petSpecies: Species;
+  petPhotoUrl: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  householdInfo: string;
+  notes: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'declined';
+}
+
+export interface ShelterAnimalRecord {
+  id: string;
+  name: string;
+  species: Species;
+  breed: string;
+  photoUrl: string;
+  intakeDate: string;
+  intakeReason: string;
+  status: 'Available' | 'Pending Adoption' | 'Adopted' | 'Medical Hold';
+  healthNotes: string;
+  vaccinations: string[];
+  gender: 'Male' | 'Female';
+  age: string;
+  spayedNeutered: boolean;
+}
+
+export interface LostPetContactRequest {
+  id: string;
+  reportId: string;
+  petName: string;
+  senderName: string;
+  senderContact: string;
+  message: string;
+  sentAt: string;
+  posterApproved: boolean;
+}
 
 export interface ProviderDashboardSession {
   id: string;
@@ -308,4 +369,5 @@ export interface VetUserSession {
   approvedAt?: string;
   createdAt?: string;
 }
+
 

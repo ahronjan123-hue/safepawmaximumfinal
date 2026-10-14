@@ -14,192 +14,126 @@ import {
   Building,
   Home,
   Sparkles,
+  ArrowLeft,
+  ArrowRight,
+  Phone,
+  Mail,
+  User,
+  Radio,
 } from 'lucide-react';
 import { INITIAL_CLINICS } from '../../data/initialData';
-import { ProviderServiceType } from '../../types';
+import { ProviderServiceType, UserRole } from '../../types';
 
-export const AuthPage: React.FC = () => {
+interface AuthPageProps {
+  initialRole?: UserRole;
+  onBackToHome?: () => void;
+}
+
+export const AuthPage: React.FC<AuthPageProps> = ({
+  initialRole = 'pet_owner',
+  onBackToHome,
+}) => {
   const {
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
     loginAsDemoUser,
     updateProfileDetails,
-    completeOAuthFromCallbackUrl,
     authError,
     setAuthError,
-    isConfigured,
   } = useAuth();
 
-  // Default to Pet Owner (User) as the starting point
-  const [portalMode, setPortalMode] = useState<'pet_owner' | 'veterinarian'>('pet_owner');
-  const [authMethod, setAuthMethod] = useState<'google' | 'email'>('google');
+  // Role: Pet owner, provider, or shelter/rescuer (plus clinical vet)
+  const [portalMode, setPortalMode] = useState<UserRole>(initialRole);
+  const [authMethod, setAuthMethod] = useState<'google' | 'email'>('email');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showRedirectHelper, setShowRedirectHelper] = useState(false);
-  const [pastedCallbackUrl, setPastedCallbackUrl] = useState('');
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
-  // Email form state
-  const [email, setEmail] = useState('');
+  // Email or Phone form state
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
-  // Vet / Provider registration specific fields
+  // Provider specific fields
   const [providerType, setProviderType] = useState<ProviderServiceType>('veterinary_clinic');
   const [businessName, setBusinessName] = useState('Greenwood Animal Hospital & Wellness Center');
   const [vetLicense, setVetLicense] = useState('');
   const [selectedClinicId, setSelectedClinicId] = useState(INITIAL_CLINICS[0].id);
   const [vetSpecialization, setVetSpecialization] = useState('Clinical Veterinary Medicine');
 
-  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-
-  const handleCopyText = (text: string, label: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      setCopiedUrl(label);
-      setTimeout(() => setCopiedUrl(null), 2000);
-    }
-  };
-
-  const handleCompleteFromPastedUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pastedCallbackUrl.trim()) return;
-    setIsSubmitting(true);
-    const res = await completeOAuthFromCallbackUrl(pastedCallbackUrl);
-    if (!res.success && res.error) {
-      setAuthError(res.error);
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleQuickEnter = async () => {
-    const clinic = INITIAL_CLINICS.find((c) => c.id === selectedClinicId) || INITIAL_CLINICS[0];
-    loginAsDemoUser(portalMode);
-    if (portalMode === 'veterinarian') {
-      const bName =
-        providerType === 'veterinary_clinic'
-          ? (businessName.trim() || clinic.name)
-          : providerType === 'grooming_salon'
-          ? 'Paws & Bubbles Pet Luxury Spa & Grooming'
-          : 'PawHaven Animal Rescue Alliance';
-
-      await updateProfileDetails({
-        providerType,
-        businessName: bName,
-        licenseNumber: providerType === 'veterinary_clinic' ? (vetLicense.trim() || 'PRC-VET-0038912') : undefined,
-        clinicId: clinic.id,
-        clinicName: bName,
-        specialization:
-          vetSpecialization.trim() ||
-          (providerType === 'veterinary_clinic'
-            ? 'Clinical Veterinary Medicine'
-            : providerType === 'grooming_salon'
-            ? 'Master Pet Stylist & Spa Care'
-            : 'Shelter Sanctuary & Animal Welfare'),
-      });
-    }
+  const handleQuickDemoEnter = (
+    roleToEnter: UserRole | 'veterinarian',
+    provType: ProviderServiceType = 'veterinary_clinic'
+  ) => {
+    loginAsDemoUser(roleToEnter, undefined, provType);
   };
 
   // Handle Continue with Google
-  const handleGoogleAuth = async (overrideEmail?: string, overrideName?: string, overrideLicense?: string) => {
+  const handleGoogleAuth = async () => {
     setAuthError(null);
     setIsSubmitting(true);
-    setShowRedirectHelper(true);
-
     const clinic = INITIAL_CLINICS.find((c) => c.id === selectedClinicId) || INITIAL_CLINICS[0];
 
     try {
-      // Persist chosen role in localStorage
-      try {
-        localStorage.setItem('safepaw_intended_role', portalMode);
-        localStorage.setItem('safepaw_role_v5_live', portalMode);
-      } catch {}
-
-      if (!isConfigured) {
-        loginAsDemoUser(portalMode);
-        if (portalMode === 'veterinarian' && (vetLicense.trim() || selectedClinicId || vetSpecialization.trim())) {
-          await updateProfileDetails({
-            licenseNumber: overrideLicense || vetLicense.trim() || undefined,
-            clinicId: clinic.id,
-            clinicName: clinic.name,
-            specialization: vetSpecialization.trim() || undefined,
-          });
-        }
-        setIsSubmitting(false);
-        return;
-      }
-
       const result = await signInWithGoogle(portalMode, {
-        fullName: overrideName || (fullName.trim() ? fullName.trim() : undefined),
-        licenseNumber: overrideLicense || (portalMode === 'veterinarian' ? (vetLicense.trim() || undefined) : undefined),
-        clinicId: portalMode === 'veterinarian' ? clinic.id : undefined,
-        clinicName: portalMode === 'veterinarian' ? clinic.name : undefined,
-        specialization: portalMode === 'veterinarian' ? (vetSpecialization.trim() || undefined) : undefined,
+        fullName: fullName.trim() || undefined,
+        licenseNumber: portalMode === 'veterinarian' ? (vetLicense.trim() || 'PRC-VET-0049182') : undefined,
+        clinicId: clinic.id,
+        clinicName: clinic.name,
+        specialization: vetSpecialization.trim() || undefined,
+        providerType,
+        businessName,
       });
 
       if (!result.success && result.error) {
         setAuthError(result.error);
       }
     } catch (err: any) {
-      setAuthError(err.message || 'Authentication error.');
+      setAuthError(err.message || 'Authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle Email Auth
+  // Handle Email or Phone Auth
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      setAuthError('Please provide both email and password.');
+    setAuthError(null);
+
+    if (!emailOrPhone.trim()) {
+      setAuthError('Please enter your email address or mobile phone number.');
+      return;
+    }
+    if (!password) {
+      setAuthError('Please enter your password.');
       return;
     }
 
-    setAuthError(null);
     setIsSubmitting(true);
     const clinic = INITIAL_CLINICS.find((c) => c.id === selectedClinicId) || INITIAL_CLINICS[0];
 
     try {
-      if (!isConfigured) {
-        loginAsDemoUser(portalMode);
-        await updateProfileDetails({
-          email: email.trim(),
-          fullName: fullName.trim() || (portalMode === 'veterinarian' ? 'Dr. Practicing Veterinarian, DVM' : email.split('@')[0]),
-          licenseNumber: portalMode === 'veterinarian' ? (vetLicense.trim() || 'PRC-VET-0038912') : undefined,
-          clinicId: portalMode === 'veterinarian' ? clinic.id : undefined,
-          clinicName: portalMode === 'veterinarian' ? clinic.name : undefined,
-          specialization: portalMode === 'veterinarian' ? (vetSpecialization.trim() || 'Clinical Veterinary Medicine') : undefined,
-        });
-        setIsSubmitting(false);
-        return;
-      }
+      const res = isSigningUp
+        ? await signUpWithEmail(emailOrPhone.trim(), password, portalMode, {
+            fullName: fullName.trim() || undefined,
+            licenseNumber: portalMode === 'veterinarian' ? (vetLicense.trim() || 'PRC-VET-0049182') : undefined,
+            clinicId: clinic.id,
+            clinicName: clinic.name,
+            specialization: vetSpecialization.trim() || undefined,
+            providerType,
+            businessName,
+          })
+        : await signInWithEmail(emailOrPhone.trim(), password, portalMode, {
+            fullName: fullName.trim() || undefined,
+            providerType,
+            businessName,
+          });
 
-      if (isSigningUp) {
-        const res = await signUpWithEmail(email, password, portalMode, {
-          fullName: fullName.trim() || (portalMode === 'veterinarian' ? 'Dr. Practicing Veterinarian, DVM' : 'Pet Parent'),
-          licenseNumber: portalMode === 'veterinarian' ? (vetLicense.trim() || 'PRC-VET-0038912') : undefined,
-          clinicId: portalMode === 'veterinarian' ? clinic.id : undefined,
-          clinicName: portalMode === 'veterinarian' ? clinic.name : undefined,
-          specialization: portalMode === 'veterinarian' ? (vetSpecialization.trim() || 'Clinical Veterinary Medicine') : undefined,
-        });
-        if (!res.success && res.error) {
-          setAuthError(res.error);
-        }
-      } else {
-        const res = await signInWithEmail(email, password, portalMode, {
-          fullName: fullName.trim() || (portalMode === 'veterinarian' ? 'Dr. Practicing Veterinarian, DVM' : 'Pet Parent'),
-          licenseNumber: portalMode === 'veterinarian' ? (vetLicense.trim() || 'PRC-VET-0038912') : undefined,
-          clinicId: portalMode === 'veterinarian' ? clinic.id : undefined,
-          clinicName: portalMode === 'veterinarian' ? clinic.name : undefined,
-          specialization: portalMode === 'veterinarian' ? (vetSpecialization.trim() || 'Clinical Veterinary Medicine') : undefined,
-        });
-        if (!res.success && res.error) {
-          setAuthError(res.error);
-        }
+      if (!res.success && res.error) {
+        setAuthError(res.error);
       }
     } catch (err: any) {
-      setAuthError(err.message || 'Failed to authenticate with email.');
+      setAuthError(err.message || 'Authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -208,65 +142,78 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col justify-between font-sans selection:bg-teal-300 selection:text-stone-950">
       {/* Top Navbar */}
-      <header className="border-b border-stone-800 bg-stone-900/50 backdrop-blur-md px-4 sm:px-6 py-3.5">
+      <header className="border-b border-stone-800 bg-stone-900/60 backdrop-blur-md px-4 sm:px-6 py-4 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-white shadow-md shadow-teal-900/40">
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 10.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5-2.5 1.12-2.5 2.5 2.5zm-5-2c1.38 0 2.5-1.12 2.5-2.5S8.38 3.5 7 3.5 4.5 4.62 4.5 6s1.12 2.5 2.5 2.5zm10 0c1.38 0 2.5-1.12 2.5-2.5S18.38 3.5 17 3.5 14.5 4.62 14.5 6s1.12 2.5 2.5 2.5zm-1.8 4.2c-.7-.5-1.6-.7-2.7-.7s-2 .2-2.7.7c-2.4 1.7-4.8 5-2.8 7.3 1.2 1.4 3.4 1.5 5.5 1.5s4.3-.1 5.5-1.5c2-2.3-.4-5.6-2.8-7.3z"/>
-              </svg>
+            <div className="w-10 h-10 rounded-2xl bg-teal-500 text-stone-950 flex items-center justify-center font-black shadow-md border border-teal-400">
+              <Shield className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-lg font-bold text-white tracking-tight">SafePaw Connect</span>
+              <span className="text-lg font-black text-white tracking-tight">SafePaw</span>
               <span className="hidden sm:inline-block ml-2 text-[10px] text-teal-400 uppercase tracking-widest font-mono font-bold bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800/80">
-                PH National Veterinary Health
+                Verified Pet Care & Health
               </span>
             </div>
           </div>
+
+          {onBackToHome && (
+            <button
+              onClick={onBackToHome}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 text-xs font-bold transition cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Public Home</span>
+            </button>
+          )}
         </div>
       </header>
 
       {/* Main Authentication Card */}
       <main className="max-w-5xl w-full mx-auto px-4 py-8 sm:py-12 flex-1 flex flex-col justify-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Hero Pitch */}
+          {/* Left Pitch Column */}
           <div className="lg:col-span-5 space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Unified Veterinary Care & Pet Records
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Sign In or Create Your Account</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+              One platform for pet parents, care providers & rescues
             </h1>
 
             <p className="text-stone-400 text-xs sm:text-sm leading-relaxed">
-              Connect with accredited veterinary hospitals in the Philippines. Access digital pet passports, schedule appointments, and coordinate emergency health care.
+              Book certified veterinary care, grooming, and walking. Manage animal shelter intakes and search missing pets across the community radar.
             </p>
 
-            <div className="space-y-3.5 pt-2">
+            <div className="space-y-3 pt-2">
               <div className="flex items-start gap-3 text-xs text-stone-300">
-                <div className="w-6 h-6 rounded-lg bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Shield className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Heart className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="font-semibold text-stone-100">Board-Accredited Veterinary Network</div>
-                  <div className="text-[11px] text-stone-400">Verified PRC practitioners and 24/7 animal trauma centers.</div>
+                  <div className="font-bold text-white">Pet Owner Tools</div>
+                  <div className="text-[11px] text-stone-400">Vaccine passports, live booking, reminders & lost pet radar.</div>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 text-xs text-stone-300">
-                <div className="w-6 h-6 rounded-lg bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FileText className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Activity className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="font-semibold text-stone-100">Digital Health Passport & Vaccines</div>
-                  <div className="text-[11px] text-stone-400">Portable medical histories, vaccination schedules, and prescriptions.</div>
+                  <div className="font-bold text-white">Pet Care Service Providers</div>
+                  <div className="text-[11px] text-stone-400">Calendar slots, client bookings, earnings & verified reputation.</div>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 text-xs text-stone-300">
-                <div className="w-6 h-6 rounded-lg bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Calendar className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Home className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="font-semibold text-stone-100">Live Booking & Consultation Tracking</div>
-                  <div className="text-[11px] text-stone-400">Real-time status updates from check-in to discharge.</div>
+                  <div className="font-bold text-white">Shelters & Rescuers</div>
+                  <div className="text-[11px] text-stone-400">Animal intake records, adoption matching & radar search.</div>
                 </div>
               </div>
             </div>
@@ -274,22 +221,23 @@ export const AuthPage: React.FC = () => {
 
           {/* Right Auth Form Card */}
           <div className="lg:col-span-7 bg-stone-900 border border-stone-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-            {/* Role Selection Tabs */}
+            {/* Step 1: Choose Role as requested in spec */}
             <div className="space-y-2">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                Sign in to your account:
+                1. Choose your account role:
               </label>
-              <div className="grid grid-cols-2 p-1 bg-stone-950 rounded-2xl border border-stone-800 gap-1">
+
+              <div className="grid grid-cols-3 p-1.5 bg-stone-950 rounded-2xl border border-stone-800 gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     setPortalMode('pet_owner');
                     setAuthError(null);
                   }}
-                  className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs transition cursor-pointer text-center ${
                     portalMode === 'pet_owner'
-                      ? 'bg-teal-500 text-stone-950 shadow-md'
-                      : 'text-stone-400 hover:text-white'
+                      ? 'bg-teal-500 text-stone-950 shadow-md font-black'
+                      : 'text-stone-400 hover:text-white hover:bg-stone-900 font-semibold'
                   }`}
                 >
                   <Heart className="w-4 h-4" />
@@ -299,25 +247,102 @@ export const AuthPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setPortalMode('veterinarian');
+                    setPortalMode('service_provider');
                     setAuthError(null);
                   }}
-                  className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    portalMode === 'veterinarian'
-                      ? 'bg-teal-500 text-stone-950 shadow-md'
-                      : 'text-stone-400 hover:text-white'
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs transition cursor-pointer text-center ${
+                    portalMode === 'service_provider'
+                      ? 'bg-teal-500 text-stone-950 shadow-md font-black'
+                      : 'text-stone-400 hover:text-white hover:bg-stone-900 font-semibold'
                   }`}
                 >
-                  <Stethoscope className="w-4 h-4" />
-                  <span>Veterinarian</span>
+                  <Activity className="w-4 h-4" />
+                  <span>Provider</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalMode('shelter_rescuer');
+                    setAuthError(null);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs transition cursor-pointer text-center ${
+                    portalMode === 'shelter_rescuer'
+                      ? 'bg-teal-500 text-stone-950 shadow-md font-black'
+                      : 'text-stone-400 hover:text-white hover:bg-stone-900 font-semibold'
+                  }`}
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Shelter/Rescuer</span>
                 </button>
               </div>
+
+              {/* Sub-selector for Veterinarians */}
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setPortalMode(portalMode === 'veterinarian' ? 'service_provider' : 'veterinarian')}
+                  className="text-[11px] text-teal-400 hover:underline cursor-pointer"
+                >
+                  {portalMode === 'veterinarian'
+                    ? 'Switch back to standard provider'
+                    : 'Are you a licensed clinical veterinarian? Access clinical suite →'}
+                </button>
+              </div>
+
+              {/* Provider Category Selection for Service Providers */}
+              {portalMode === 'service_provider' && (
+                <div className="pt-2 space-y-1.5 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-teal-400">
+                    Select Your Service Provider Type:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProviderType('veterinary_clinic');
+                        setBusinessName('Greenwood Animal Hospital & Wellness Center');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center gap-2.5 ${
+                        providerType === 'veterinary_clinic'
+                          ? 'bg-teal-500/15 border-teal-500 text-teal-300 ring-1 ring-teal-500/50'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-white hover:border-stone-700'
+                      }`}
+                    >
+                      <Activity className="w-4 h-4 text-teal-400 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-white">Veterinary Clinic</div>
+                        <div className="text-[10px] text-stone-400">Clinical practice & treatments</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProviderType('grooming_salon');
+                        setBusinessName('Paws & Bubbles Pet Luxury Spa & Grooming');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center gap-2.5 ${
+                        providerType === 'grooming_salon'
+                          ? 'bg-teal-500/15 border-teal-500 text-teal-300 ring-1 ring-teal-500/50'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-white hover:border-stone-700'
+                      }`}
+                    >
+                      <Scissors className="w-4 h-4 text-teal-400 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-white">Spa & Grooming Salon</div>
+                        <div className="text-[10px] text-stone-400">Styling, bath & hygiene</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Error Banner */}
             {authError && (
               <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-800/80 text-rose-200 text-xs flex items-start gap-2.5 animate-fadeIn">
-                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <div className="font-semibold">Authentication Notice</div>
                   <div className="text-[11px] text-rose-300/90">{authError}</div>
@@ -325,336 +350,164 @@ export const AuthPage: React.FC = () => {
               </div>
             )}
 
-            {/* If Service Provider Mode: Choose POV (Clinic, Spa/Grooming, Shelter/Rescue) */}
-            {portalMode === 'veterinarian' && (
-              <div className="bg-stone-950/90 rounded-2xl p-4 sm:p-5 border border-teal-800/60 space-y-4 animate-fadeIn">
-                <div className="flex items-center justify-between border-b border-stone-800 pb-2.5">
-                  <span className="text-[11px] uppercase font-bold text-teal-400 tracking-wider flex items-center gap-1.5">
-                    <Building className="w-3.5 h-3.5" />
-                    Select Service Provider POV:
-                  </span>
-                  <span className="text-[10px] text-stone-400 font-mono">Provider Portal Suite</span>
-                </div>
+            {/* Step 2: Email or Phone Auth Form */}
+            <form onSubmit={handleEmailAuth} className="space-y-3.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                2. Enter your credentials:
+              </label>
 
-                {/* 3 Provider POV Selector Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProviderType('veterinary_clinic');
-                      setBusinessName('Greenwood Animal Hospital & Wellness Center');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      providerType === 'veterinary_clinic'
-                        ? 'bg-teal-950/70 border-teal-500 text-white ring-2 ring-teal-500/40 shadow-sm'
-                        : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className={`p-1.5 rounded-lg ${providerType === 'veterinary_clinic' ? 'bg-teal-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>
-                        <Stethoscope className="w-4 h-4" />
-                      </div>
-                      {providerType === 'veterinary_clinic' && <CheckCircle className="w-3.5 h-3.5 text-teal-400" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">Veterinary Clinic</div>
-                      <div className="text-[10px] text-stone-400 mt-0.5">EMR, Triage & Surgeries</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProviderType('grooming_salon');
-                      setBusinessName('Paws & Bubbles Pet Luxury Spa & Grooming');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      providerType === 'grooming_salon'
-                        ? 'bg-teal-950/70 border-teal-500 text-white ring-2 ring-teal-500/40 shadow-sm'
-                        : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className={`p-1.5 rounded-lg ${providerType === 'grooming_salon' ? 'bg-teal-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>
-                        <Scissors className="w-4 h-4" />
-                      </div>
-                      {providerType === 'grooming_salon' && <CheckCircle className="w-3.5 h-3.5 text-teal-400" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">Spa & Grooming</div>
-                      <div className="text-[10px] text-stone-400 mt-0.5">Bays & Transformations</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProviderType('rescue_shelter');
-                      setBusinessName('PawHaven Animal Rescue Alliance');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      providerType === 'rescue_shelter' || providerType === 'animal_shelter'
-                        ? 'bg-teal-950/70 border-teal-500 text-white ring-2 ring-teal-500/40 shadow-sm'
-                        : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className={`p-1.5 rounded-lg ${providerType === 'rescue_shelter' || providerType === 'animal_shelter' ? 'bg-teal-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      {(providerType === 'rescue_shelter' || providerType === 'animal_shelter') && <CheckCircle className="w-3.5 h-3.5 text-teal-400" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">Shelters & Rescue</div>
-                      <div className="text-[10px] text-stone-400 mt-0.5">Rescues & Adoptions</div>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Specific Fields for selected POV */}
-                {providerType === 'veterinary_clinic' && (
-                  <div className="space-y-2 text-xs pt-1 border-t border-stone-850">
-                    <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">
-                        Professional Regulation Commission (PRC) License Number:
-                      </label>
-                      <input
-                        type="text"
-                        value={vetLicense}
-                        onChange={(e) => setVetLicense(e.target.value)}
-                        placeholder="e.g. PRC-VET-0038912"
-                        className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 font-mono text-xs focus:outline-hidden focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] text-stone-400 mb-1">Clinic / Hospital:</label>
-                        <select
-                          value={selectedClinicId}
-                          onChange={(e) => setSelectedClinicId(e.target.value)}
-                          className="w-full bg-stone-900 border border-stone-700 rounded-xl px-2.5 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                        >
-                          {INITIAL_CLINICS.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] text-stone-400 mb-1">Specialization:</label>
-                        <input
-                          type="text"
-                          value={vetSpecialization}
-                          onChange={(e) => setVetSpecialization(e.target.value)}
-                          placeholder="Clinical Veterinary Medicine"
-                          className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {providerType === 'grooming_salon' && (
-                  <div className="space-y-2 text-xs pt-1 border-t border-stone-850">
-                    <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">Salon / Spa Facility Name:</label>
-                      <input
-                        type="text"
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        placeholder="Paws & Bubbles Pet Luxury Spa & Grooming"
-                        className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">Stylist Master Specialty:</label>
-                      <input
-                        type="text"
-                        value={vetSpecialization}
-                        onChange={(e) => setVetSpecialization(e.target.value)}
-                        placeholder="Asian Fusion, De-shedding & Medicated Baths"
-                        className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {(providerType === 'rescue_shelter' || providerType === 'animal_shelter') && (
-                  <div className="space-y-2 text-xs pt-1 border-t border-stone-850">
-                    <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">Shelter / Organization Name:</label>
-                      <input
-                        type="text"
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        placeholder="PawHaven Animal Rescue Alliance"
-                        className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">Welfare Focus:</label>
-                      <input
-                        type="text"
-                        value={vetSpecialization}
-                        onChange={(e) => setVetSpecialization(e.target.value)}
-                        placeholder="Stray Rescue Dispatches & Foster Network"
-                        className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Primary Action: Continue with Google */}
-            <div className="space-y-3 pt-1">
-              <button
-                type="button"
-                onClick={() => handleGoogleAuth()}
-                disabled={isSubmitting}
-                className="w-full py-3.5 px-4 bg-white hover:bg-stone-100 text-stone-900 rounded-2xl font-bold text-sm transition flex items-center justify-center gap-3 shadow-lg hover:shadow-xl active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin text-teal-700" />
-                    <span>Connecting to Google OAuth...</span>
-                  </>
-                ) : (
-                  <>
-                    {/* Official Google 'G' Logo */}
-                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
-                  </>
-                )}
-              </button>
-
-              <div className="pt-0.5">
-                <button
-                  type="button"
-                  onClick={handleQuickEnter}
-                  className="w-full py-2.5 px-3 bg-stone-800 hover:bg-stone-700 border border-stone-700 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span>
-                    Instant Quick Sign-In as {portalMode === 'veterinarian' ? 'Veterinary / Care Provider' : 'Pet Owner'}
-                  </span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-stone-800"></div>
-                <button
-                  type="button"
-                  onClick={() => setAuthMethod(authMethod === 'google' ? 'email' : 'google')}
-                  className="text-[11px] text-stone-500 hover:text-stone-300 font-medium transition cursor-pointer"
-                >
-                  {authMethod === 'google' ? 'Or use Email & Password' : 'Or use Google One-Click'}
-                </button>
-                <div className="flex-1 h-px bg-stone-800"></div>
-              </div>
-            </div>
-
-            {/* Collapsible Email & Password Section */}
-            {authMethod === 'email' && (
-              <form onSubmit={handleEmailAuth} className="space-y-3 pt-1 animate-fadeIn">
-                {isSigningUp && (
-                  <div>
-                    <label className="block text-[11px] text-stone-400 mb-1">Full Name:</label>
+              {isSigningUp && (
+                <div>
+                  <label className="block text-[11px] text-stone-400 mb-1">Full Legal Name:</label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder={portalMode === 'veterinarian' ? 'Dr. Juan Dela Cruz, DVM' : 'Juan Dela Cruz'}
-                      className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
+                      placeholder={
+                        portalMode === 'pet_owner'
+                          ? 'Sophia Rodriguez'
+                          : portalMode === 'shelter_rescuer'
+                          ? 'Elena Gomez (PawHaven Rescue)'
+                          : 'Greenwood Care Management'
+                      }
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-stone-600 focus:outline-none focus:border-teal-500"
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Email or Phone field */}
+              <div>
+                <label className="block text-[11px] text-stone-400 mb-1">
+                  Email Address or Mobile Phone Number:
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={emailOrPhone}
+                    onChange={(e) => setEmailOrPhone(e.target.value)}
+                    placeholder="sophia@example.com or +63 917 555 0192"
+                    className="w-full bg-stone-950 border border-stone-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-stone-600 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-stone-400 mb-1">Password:</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-stone-600 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 px-4 bg-teal-500 hover:bg-teal-400 text-stone-950 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isSigningUp ? (
+                  `Create ${portalMode === 'pet_owner' ? 'Pet Owner' : portalMode === 'shelter_rescuer' ? 'Shelter' : 'Provider'} Account`
+                ) : (
+                  `Sign In as ${portalMode === 'pet_owner' ? 'Pet Owner' : portalMode === 'shelter_rescuer' ? 'Shelter/Rescuer' : 'Provider'}`
                 )}
+              </button>
 
-                <div>
-                  <label className="block text-[11px] text-stone-400 mb-1">Email Address:</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={portalMode === 'veterinarian' ? 'doctor@greenwoodvet.ph' : 'petparent@example.ph'}
-                    className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-stone-400 mb-1">Password:</label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-xs focus:outline-hidden focus:border-teal-500"
-                  />
-                </div>
-
+              <div className="flex items-center justify-between text-[11px] text-stone-400 pt-1">
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-2.5 px-4 bg-teal-500 hover:bg-teal-400 text-stone-950 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={() => setIsSigningUp(!isSigningUp)}
+                  className="text-teal-400 hover:underline cursor-pointer"
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isSigningUp ? (
-                    'Create Account'
-                  ) : (
-                    'Sign In with Password'
-                  )}
+                  {isSigningUp ? 'Already have an account? Sign In' : "Don't have an account? Register here"}
                 </button>
 
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setIsSigningUp(!isSigningUp)}
-                    className="text-[11px] text-teal-400 hover:underline cursor-pointer"
-                  >
-                    {isSigningUp ? 'Already have an account? Sign in' : 'Need a new account? Register here'}
-                  </button>
-                </div>
-              </form>
-            )}
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  className="text-stone-400 hover:text-white transition cursor-pointer"
+                >
+                  Or continue with Google →
+                </button>
+              </div>
+            </form>
 
+            {/* Quick 1-Click Instant Demo Login for Testing */}
+            <div className="pt-4 border-t border-stone-800 space-y-2.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                Quick 1-Click Demo Logins:
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoEnter('pet_owner')}
+                  className="py-2.5 px-3 bg-stone-950 hover:bg-stone-800 border border-stone-800 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Heart className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Pet Owner (Sophia)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoEnter('service_provider', 'veterinary_clinic')}
+                  className="py-2.5 px-3 bg-stone-950 hover:bg-stone-800 border border-stone-800 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Activity className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Veterinary Clinic (Greenwood)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoEnter('service_provider', 'grooming_salon')}
+                  className="py-2.5 px-3 bg-stone-950 hover:bg-stone-800 border border-stone-800 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Scissors className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Grooming Salon (Paws & Bubbles)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoEnter('shelter_rescuer', 'rescue_shelter')}
+                  className="py-2.5 px-3 bg-stone-950 hover:bg-stone-800 border border-stone-800 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Home className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Shelter & Rescue (PawHaven)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoEnter('veterinarian')}
+                  className="py-2.5 px-3 bg-stone-950 hover:bg-stone-800 border border-stone-800 text-teal-300 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs sm:col-span-2"
+                >
+                  <Stethoscope className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Clinical Vet Doctor (Dr. David)</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-stone-900 bg-stone-950 px-4 py-6 text-center text-stone-500 text-xs space-y-2">
+      <footer className="border-t border-stone-900 bg-stone-950 px-4 py-6 text-center text-stone-500 text-xs">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>© {new Date().getFullYear()} SafePaw Connect Platform · Republic of the Philippines</div>
+          <div>© {new Date().getFullYear()} SafePaw Connect Platform</div>
           <div className="text-stone-500 text-[11px]">
-            National Veterinary Healthcare Network
+            National Pet Healthcare, Grooming & Rescue Network
           </div>
         </div>
       </footer>
-
     </div>
   );
 };

@@ -37,12 +37,14 @@ import { VetProfileAvailabilityView } from './components/vet/VetProfileAvailabil
 import { VetConsultationModal } from './components/vet/VetConsultationModal';
 import { VetRescheduleModal } from './components/vet/VetRescheduleModal';
 import { ProviderPortalDashboard } from './components/provider/ProviderPortalDashboard';
-import { Appointment } from './types';
+import { ShelterDashboardView } from './components/shelter/ShelterDashboardView';
+import { PublicHomePage } from './components/views/PublicHomePage';
+import { Appointment, UserRole } from './types';
 
 import { Shield, Globe, Settings, WifiOff, Stethoscope, LogOut, Lock, AlertTriangle } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
-  const { user, profile, isLoading, signOut, switchRole } = useAuth();
+  const { user, profile, isLoading, signOut, switchRole, loginAsDemoUser } = useAuth();
 
   const {
     currentRole,
@@ -60,7 +62,9 @@ const MainLayout: React.FC = () => {
     isOnline,
   } = useApp();
 
-  // Modals state for Pet Owner
+  // Modals & Navigation state
+  const [showAuthPage, setShowAuthPage] = useState(false);
+  const [authInitialRole, setAuthInitialRole] = useState<UserRole>('pet_owner');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newPetModalOpen, setNewPetModalOpen] = useState(false);
@@ -91,6 +95,14 @@ const MainLayout: React.FC = () => {
       if (currentRole !== 'service_provider') {
         setCurrentRole('service_provider');
       }
+      return;
+    }
+
+    if (profile.role === 'shelter_rescuer') {
+      if (currentRole !== 'shelter_rescuer') {
+        setCurrentRole('shelter_rescuer');
+      }
+      setShowProviderPortal(false);
       return;
     }
 
@@ -147,9 +159,27 @@ const MainLayout: React.FC = () => {
     return <AuthLoadingScreen />;
   }
 
-  // 2. Unauthenticated user: Show SafePaw Authentication Entry
+  // 2. Unauthenticated user: Show Public Home Page with hero, search, featured & lost radar, or Auth Page
   if (!user || !profile) {
-    return <AuthPage />;
+    if (showAuthPage) {
+      return (
+        <AuthPage
+          initialRole={authInitialRole}
+          onBackToHome={() => setShowAuthPage(false)}
+        />
+      );
+    }
+    return (
+      <PublicHomePage
+        onOpenAuth={(role) => {
+          setAuthInitialRole(role || 'pet_owner');
+          setShowAuthPage(true);
+        }}
+        onExploreAsGuest={() => {
+          loginAsDemoUser('pet_owner');
+        }}
+      />
+    );
   }
 
   // 3. Veterinarian with Pending Approval: Show Approval Pending View
@@ -270,7 +300,28 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  // 5. SERVICE PROVIDER PORTAL DASHBOARD (Veterinary Clinics, Spa & Grooming, Shelters & Rescue)
+  // 5. SHELTER & RESCUER PORTAL INTERFACE
+  if (profile.role === 'shelter_rescuer') {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans">
+        <ShelterDashboardView
+          onOpenNotifications={() => setNotificationsOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onSwitchRole={() => switchRole('pet_owner')}
+        />
+        <NotificationDrawer
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
+        <SettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  // 5B. SERVICE PROVIDER PORTAL DASHBOARD (Veterinary Clinics, Spa & Grooming, Shelters & Rescue)
   if (
     profile.role === 'service_provider' ||
     (showProviderPortal && profile.role !== 'veterinarian')

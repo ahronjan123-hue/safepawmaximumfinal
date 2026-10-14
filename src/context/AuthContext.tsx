@@ -18,12 +18,14 @@ export interface Session {
   expires_at?: number;
 }
 
+import { UserRole } from '../types';
+
 export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
   avatarUrl?: string;
-  role: 'pet_owner' | 'service_provider' | 'veterinarian';
+  role: UserRole;
   providerType?: 'veterinary_clinic' | 'grooming_salon' | 'rescue_shelter' | 'animal_shelter';
   businessName?: string;
   isVerified?: boolean;
@@ -47,7 +49,7 @@ interface AuthContextType {
   setAuthError: (err: string | null) => void;
   isConfigured: boolean;
   signInWithGoogle: (
-    role: 'pet_owner' | 'service_provider' | 'veterinarian',
+    role: UserRole,
     extraData?: {
       fullName?: string;
       licenseNumber?: string;
@@ -59,9 +61,9 @@ interface AuthContextType {
     }
   ) => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (
-    email: string,
+    emailOrPhone: string,
     password: string,
-    role?: 'pet_owner' | 'service_provider' | 'veterinarian',
+    role?: UserRole,
     extraData?: {
       fullName?: string;
       licenseNumber?: string;
@@ -73,11 +75,11 @@ interface AuthContextType {
     }
   ) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (
-    email: string,
+    emailOrPhone: string,
     password: string,
-    role: 'pet_owner' | 'service_provider' | 'veterinarian',
+    role: UserRole,
     extraData?: {
-      fullName: string;
+      fullName?: string;
       licenseNumber?: string;
       clinicId?: string;
       clinicName?: string;
@@ -87,11 +89,11 @@ interface AuthContextType {
     }
   ) => Promise<{ success: boolean; error?: string }>;
   switchRole: (
-    newRole: 'pet_owner' | 'service_provider' | 'veterinarian',
+    newRole: UserRole,
     vetDetails?: Partial<UserProfile>
   ) => Promise<{ success: boolean; error?: string }>;
   loginAsDemoUser: (
-    role: 'pet_owner' | 'service_provider' | 'veterinarian' | 'pending_vet',
+    role: UserRole | 'pending_vet',
     vetId?: string,
     providerType?: 'veterinary_clinic' | 'grooming_salon' | 'rescue_shelter' | 'animal_shelter'
   ) => void;
@@ -169,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sign In with Google
   const signInWithGoogle = async (
-    role: 'pet_owner' | 'service_provider' | 'veterinarian',
+    role: UserRole,
     extraData?: {
       fullName?: string;
       licenseNumber?: string;
@@ -184,18 +186,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const isPetOwner = role === 'pet_owner';
     const isVet = role === 'veterinarian';
-    const effectiveRole: 'pet_owner' | 'service_provider' | 'veterinarian' = isPetOwner ? 'pet_owner' : isVet ? 'veterinarian' : 'service_provider';
+    const isShelter = role === 'shelter_rescuer';
+    const effectiveRole: UserRole = role;
 
     const defaultName = isPetOwner
       ? (extraData?.fullName || 'Sophia Rodriguez')
       : isVet
       ? (extraData?.fullName || 'Dr. Christian David, DVM')
+      : isShelter
+      ? (extraData?.fullName || 'Elena Gomez (PawHaven Rescue)')
       : (extraData?.fullName || 'Greenwood Care Management');
 
     const defaultEmail = isPetOwner
       ? 'sophia.rodriguez@example.com'
       : isVet
       ? 'dr.christian.david@greenwoodvet.ph'
+      : isShelter
+      ? 'director@pawhavenrescue.org'
       : 'management@greenwoodvet.ph';
 
     const userId = `usr-google-${Date.now().toString(36)}`;
@@ -207,6 +214,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: defaultName,
         avatar_url: isPetOwner
           ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80'
+          : isShelter
+          ? 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80'
           : 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=300&q=80',
         role: effectiveRole,
       },
@@ -218,15 +227,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fullName: defaultName,
       avatarUrl: mockUser.user_metadata?.avatar_url,
       role: effectiveRole,
-      providerType: isPetOwner ? undefined : (extraData?.providerType || 'veterinary_clinic'),
-      businessName: isPetOwner ? undefined : (extraData?.businessName || extraData?.clinicName || 'Greenwood Animal Hospital & Wellness Center'),
+      providerType: isPetOwner ? undefined : isShelter ? 'rescue_shelter' : (extraData?.providerType || 'veterinary_clinic'),
+      businessName: isPetOwner ? undefined : isShelter ? 'PawHaven Animal Rescue Alliance & Sanctuary' : (extraData?.businessName || extraData?.clinicName || 'Greenwood Animal Hospital & Wellness Center'),
       isVerified: true,
       vetStatus: isVet ? 'approved' : undefined,
       licenseNumber: isVet ? (extraData?.licenseNumber || 'PRC-VET-0049182') : undefined,
-      clinicId: extraData?.clinicId || (isPetOwner ? undefined : '00000000-0000-0000-0000-000000000001'),
-      clinicName: extraData?.clinicName || (isPetOwner ? undefined : 'Greenwood Animal Hospital & Wellness Center'),
+      clinicId: extraData?.clinicId || (isPetOwner ? undefined : isShelter ? 'shelter-01' : '00000000-0000-0000-0000-000000000001'),
+      clinicName: extraData?.clinicName || (isPetOwner ? undefined : isShelter ? 'PawHaven Animal Rescue Alliance' : 'Greenwood Animal Hospital & Wellness Center'),
       specialization: extraData?.specialization || (isVet ? 'Companion Animal Internal Medicine' : undefined),
-      bio: isPetOwner ? 'Loving pet parent dedicated to optimal preventive care.' : 'Certified veterinary clinician providing modern compassionate care.',
+      bio: isPetOwner
+        ? 'Loving pet parent dedicated to optimal preventive care.'
+        : isShelter
+        ? 'Community rescue and foster alliance promoting ethical adoptions.'
+        : 'Certified veterinary clinician providing modern compassionate care.',
       phone: '+63 917 555 0192',
       createdAt: new Date().toISOString(),
     };
@@ -241,11 +254,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  // Sign In with Email & Password
+  // Sign In with Email & Password or Phone
   const signInWithEmail = async (
-    email: string,
+    emailOrPhone: string,
     _password: string,
-    role: 'pet_owner' | 'service_provider' | 'veterinarian' = 'pet_owner',
+    role: UserRole = 'pet_owner',
     extraData?: {
       fullName?: string;
       licenseNumber?: string;
@@ -260,13 +273,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const isPetOwner = role === 'pet_owner';
     const isVet = role === 'veterinarian';
-    const effectiveRole: 'pet_owner' | 'service_provider' | 'veterinarian' = isPetOwner ? 'pet_owner' : isVet ? 'veterinarian' : 'service_provider';
+    const isShelter = role === 'shelter_rescuer';
+    const effectiveRole: UserRole = role;
 
-    const cleanEmail = email.trim().toLowerCase();
-    const displayName = extraData?.fullName || (cleanEmail.split('@')[0] ? cleanEmail.split('@')[0].replace(/[._]/g, ' ') : 'User');
+    const isPhone = !emailOrPhone.includes('@') && /\d/.test(emailOrPhone);
+    const cleanIdentifier = emailOrPhone.trim().toLowerCase();
+    const cleanEmail = isPhone ? `${cleanIdentifier.replace(/[^0-9]/g, '')}@safepaw.user` : cleanIdentifier;
+    const displayName = extraData?.fullName || (isPhone ? `Pet Parent (${cleanIdentifier})` : (cleanEmail.split('@')[0] ? cleanEmail.split('@')[0].replace(/[._]/g, ' ') : 'User'));
     const capitalName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
-    const userId = `usr-email-${cleanEmail.replace(/[^a-z0-9]/g, '') || Date.now().toString(36)}`;
+    const userId = `usr-${cleanIdentifier.replace(/[^a-z0-9]/g, '') || Date.now().toString(36)}`;
     const mockUser: User = {
       id: userId,
       email: cleanEmail,
@@ -283,18 +299,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fullName: capitalName,
       avatarUrl: isPetOwner
         ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80'
+        : isShelter
+        ? 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80'
         : 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=300&q=80',
       role: effectiveRole,
-      providerType: isPetOwner ? undefined : (extraData?.providerType || 'veterinary_clinic'),
-      businessName: isPetOwner ? undefined : (extraData?.businessName || extraData?.clinicName || 'Greenwood Animal Hospital & Wellness Center'),
+      providerType: isPetOwner ? undefined : isShelter ? 'rescue_shelter' : (extraData?.providerType || 'veterinary_clinic'),
+      businessName: isPetOwner ? undefined : isShelter ? 'PawHaven Animal Rescue Alliance & Sanctuary' : (extraData?.businessName || extraData?.clinicName || 'Greenwood Animal Hospital & Wellness Center'),
       isVerified: true,
       vetStatus: isVet ? 'approved' : undefined,
       licenseNumber: isVet ? (extraData?.licenseNumber || 'PRC-VET-0049182') : undefined,
-      clinicId: extraData?.clinicId || (isPetOwner ? undefined : '00000000-0000-0000-0000-000000000001'),
-      clinicName: extraData?.clinicName || (isPetOwner ? undefined : 'Greenwood Animal Hospital & Wellness Center'),
+      clinicId: extraData?.clinicId || (isPetOwner ? undefined : isShelter ? 'shelter-01' : '00000000-0000-0000-0000-000000000001'),
+      clinicName: extraData?.clinicName || (isPetOwner ? undefined : isShelter ? 'PawHaven Animal Rescue Alliance' : 'Greenwood Animal Hospital & Wellness Center'),
       specialization: extraData?.specialization || (isVet ? 'Clinical Veterinary Medicine' : undefined),
-      bio: isPetOwner ? 'Pet guardian account.' : 'Professional animal care services.',
-      phone: '+63 917 555 0192',
+      bio: isPetOwner ? 'Pet guardian account.' : isShelter ? 'Shelter & rescue operations coordinator.' : 'Professional animal care services.',
+      phone: isPhone ? cleanIdentifier : '+63 917 555 0192',
       createdAt: new Date().toISOString(),
     };
 
@@ -310,11 +328,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sign Up with Email
   const signUpWithEmail = async (
-    email: string,
+    emailOrPhone: string,
     password: string,
-    role: 'pet_owner' | 'service_provider' | 'veterinarian',
+    role: UserRole,
     extraData?: {
-      fullName: string;
+      fullName?: string;
       licenseNumber?: string;
       clinicId?: string;
       clinicName?: string;
@@ -323,12 +341,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       businessName?: string;
     }
   ): Promise<{ success: boolean; error?: string }> => {
-    return signInWithEmail(email, password, role, extraData);
+    return signInWithEmail(emailOrPhone, password, role, extraData);
   };
 
   // Switch Role
   const switchRole = async (
-    newRole: 'pet_owner' | 'service_provider' | 'veterinarian',
+    newRole: UserRole,
     vetDetails?: Partial<UserProfile>
   ): Promise<{ success: boolean; error?: string }> => {
     if (!profile) return { success: false, error: 'No active user session.' };
@@ -340,6 +358,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             providerType: undefined,
             vetStatus: undefined,
+          }
+        : newRole === 'shelter_rescuer'
+        ? {
+            providerType: 'rescue_shelter',
+            businessName: 'PawHaven Animal Rescue Alliance & Sanctuary',
+            isVerified: true,
           }
         : {
             providerType: vetDetails?.providerType || profile.providerType || 'veterinary_clinic',
@@ -368,7 +392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 1-Click Demo Login
   const loginAsDemoUser = (
-    role: 'pet_owner' | 'service_provider' | 'veterinarian' | 'pending_vet',
+    role: UserRole | 'pending_vet',
     _vetId?: string,
     providerType: 'veterinary_clinic' | 'grooming_salon' | 'rescue_shelter' | 'animal_shelter' = 'veterinary_clinic'
   ) => {
@@ -435,6 +459,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       saveAuthState(demoUser, { user: demoUser, access_token: 'token_provider' }, demoProfile);
+    } else if (role === 'shelter_rescuer') {
+      const demoUser: User = {
+        id: 'usr-shelter-01',
+        email: 'director@pawhavenrescue.org',
+        user_metadata: {
+          full_name: 'Elena Gomez (PawHaven Rescue)',
+          name: 'Elena Gomez',
+          avatar_url: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80',
+          role: 'shelter_rescuer',
+        },
+      };
+
+      const demoProfile: UserProfile = {
+        id: demoUser.id,
+        email: demoUser.email!,
+        fullName: 'Elena Gomez (PawHaven Rescue Alliance)',
+        avatarUrl: demoUser.user_metadata?.avatar_url,
+        role: 'shelter_rescuer',
+        providerType: 'rescue_shelter',
+        businessName: 'PawHaven Animal Rescue Alliance & Sanctuary',
+        isVerified: true,
+        phone: '+63 928 889 4412',
+        clinicName: 'PawHaven Animal Rescue Alliance',
+        bio: 'Dedicated non-profit sanctuary providing shelter intake, medical rehabilitation, foster networks, and ethical pet adoption.',
+        createdAt: new Date().toISOString(),
+      };
+
+      saveAuthState(demoUser, { user: demoUser, access_token: 'token_shelter' }, demoProfile);
     } else if (role === 'pending_vet') {
       const demoUser: User = {
         id: 'usr-vet-pending-01',

@@ -25,6 +25,8 @@ import {
   Building,
   LogOut,
   User,
+  Activity,
+  Scissors,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -393,32 +395,87 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="text-[10px] text-stone-500 truncate">{user?.email}</div>
                     <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
                       <Shield className="w-2.5 h-2.5" />
-                      <span>{profile?.role === 'veterinarian' ? 'Veterinarian' : 'Pet Owner'}</span>
+                      <span>
+                        {profile?.role === 'veterinarian'
+                          ? 'Clinical Veterinarian'
+                          : profile?.role === 'service_provider'
+                          ? (profile?.providerType === 'grooming_salon' ? 'Pet Grooming Salon' : 'Veterinary Clinic')
+                          : profile?.role === 'shelter_rescuer'
+                          ? 'Shelter & Rescue'
+                          : 'Pet Owner'}
+                      </span>
                     </div>
                   </div>
 
                   <div className="p-1 space-y-0.5">
-                    {profile?.role !== 'veterinarian' ? (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('veterinarian');
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-teal-800 hover:bg-teal-50 rounded-lg transition font-medium"
-                      >
-                        <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Veterinarian Role</span>
-                      </button>
-                    ) : (
+                    {profile?.role !== 'pet_owner' && (
                       <button
                         onClick={async () => {
                           setUserDropdownOpen(false);
                           await switchRole('pet_owner');
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-teal-800 hover:bg-teal-50 rounded-lg transition font-medium"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
                       >
                         <Heart className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Pet Owner Role</span>
+                        <span>Switch to Pet Owner</span>
+                      </button>
+                    )}
+
+                    {!(profile?.role === 'service_provider' && profile?.providerType === 'veterinary_clinic') && (
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await switchRole('service_provider', {
+                            providerType: 'veterinary_clinic',
+                            businessName: 'Greenwood Animal Hospital & Wellness Center',
+                          });
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
+                      >
+                        <Activity className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Switch to Veterinary Clinic</span>
+                      </button>
+                    )}
+
+                    {!(profile?.role === 'service_provider' && profile?.providerType === 'grooming_salon') && (
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await switchRole('service_provider', {
+                            providerType: 'grooming_salon',
+                            businessName: 'Paws & Bubbles Pet Luxury Spa & Grooming',
+                          });
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
+                      >
+                        <Scissors className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Switch to Grooming Salon</span>
+                      </button>
+                    )}
+
+                    {profile?.role !== 'shelter_rescuer' && (
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await switchRole('shelter_rescuer');
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
+                      >
+                        <Shield className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Switch to Shelter & Rescue</span>
+                      </button>
+                    )}
+
+                    {profile?.role !== 'veterinarian' && (
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await switchRole('veterinarian');
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
+                      >
+                        <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Switch to Clinical Vet Doctor</span>
                       </button>
                     )}
 
