@@ -662,57 +662,72 @@ export const BookingView: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-stone-100 flex justify-between items-center">
+          <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-center gap-3">
             <button
               onClick={() => setStep(3)}
               className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900"
             >
               Back
             </button>
-            <button
-              onClick={handleConfirmBooking}
-              className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5"
-            >
-              <Shield className="w-4 h-4" />
-              <span>Confirm & Lock Appointment</span>
-            </button>
+            <div className="flex flex-col sm:items-end gap-1">
+              <button
+                onClick={handleConfirmBooking}
+                className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Clock className="w-4 h-4" />
+                <span>Submit Appointment Request</span>
+              </button>
+              <span className="text-[10px] text-stone-500">
+                Request will be sent to {currentClinic.name} for provider approval
+              </span>
+            </div>
           </div>
         </div>
       )}
 
       {/* STEP 5: Success Confirmation Screen */}
       {step === 5 && (
-        <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm text-center space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-            <CheckCircle className="w-9 h-9" />
+        <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm text-center space-y-5 animate-fadeIn">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto border border-amber-200">
+            <Clock className="w-9 h-9" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Appointment Confirmed!</h2>
-            <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
-              Your visit has been registered with {currentClinic.name}. We sent a calendar reminder and push notification.
+            <h2 className="text-xl font-bold text-stone-900">Appointment Requested!</h2>
+            <p className="text-xs text-stone-600 mt-1 max-w-md mx-auto leading-relaxed">
+              Your appointment request has been submitted to <strong className="text-stone-900">{currentClinic.name}</strong>. The service provider has received your request and will review your slot.
             </p>
           </div>
-          <div className="max-w-md mx-auto p-4 bg-stone-50 rounded-xl border border-stone-200 text-left text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-stone-500">Booking Reference:</span>
-              <strong className="font-mono text-teal-800">SP-APT-{bookedAppointmentId?.slice(-6).toUpperCase()}</strong>
+          <div className="max-w-md mx-auto p-4 bg-stone-50 rounded-xl border border-stone-200 text-left text-xs space-y-2.5">
+            <div className="flex justify-between items-center">
+              <span className="text-stone-500">Request Reference:</span>
+              <strong className="font-mono text-teal-800">SP-REQ-{bookedAppointmentId?.slice(-6).toUpperCase()}</strong>
             </div>
-            <div className="flex justify-between">
-              <span className="text-stone-500">Scheduled For:</span>
-              <strong>{selectedDate} at {selectedTime}</strong>
+            <div className="flex justify-between items-center">
+              <span className="text-stone-500">Service Provider:</span>
+              <strong className="text-stone-900">{currentClinic.name}</strong>
             </div>
-            <div className="flex justify-between">
-              <span className="text-stone-500">Attending Vet:</span>
-              <strong>{currentVet?.name}</strong>
+            <div className="flex justify-between items-center">
+              <span className="text-stone-500">Requested For:</span>
+              <strong className="text-stone-900">{selectedDate} at {selectedTime}</strong>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
+              <span className="text-stone-500">Service / Package:</span>
+              <strong className="text-stone-900">{currentService?.name}</strong>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="text-stone-500">Total Price:</span>
               <strong className="text-teal-900 font-bold">{formatPrice(currentService?.basePriceUSD || 0)}</strong>
             </div>
-            <div className="flex justify-between">
-              <span className="text-stone-500">Status:</span>
-              <span className="font-semibold text-emerald-700">Scheduled · Live Tracker Active</span>
+            <div className="flex justify-between items-center pt-1 border-t border-stone-200">
+              <span className="text-stone-500">Request Status:</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span>Pending Provider Approval</span>
+              </span>
             </div>
+          </div>
+          <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-xl text-xs text-teal-900 max-w-md mx-auto">
+            💡 The request notification was sent directly to <strong>{currentClinic.name}</strong>. You will receive an alert once they confirm your appointment!
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
             <button
@@ -720,24 +735,24 @@ export const BookingView: React.FC = () => {
                 const convId = startOrGetConversationWithClinic(currentClinic.id, currentPet.id);
                 sendMessage(
                   convId,
-                  `Hello! I just acquired an appointment for ${currentPet.name} for ${currentService?.name} on ${selectedDate} at ${selectedTime}. Please confirm receipt and any preparation guidelines.`
+                  `Hello! I just submitted an appointment request for ${currentPet.name} for ${currentService?.name} on ${selectedDate} at ${selectedTime}. Please confirm when available.`
                 );
                 setCurrentTab('messages');
               }}
               className="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Message Provider About Visit</span>
+              <span>Message Provider About Request</span>
             </button>
             <button
               onClick={() => setCurrentTab('tracker')}
-              className="w-full sm:w-auto px-6 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
+              className="w-full sm:w-auto px-6 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
             >
               Open Live Appointment Tracker
             </button>
             <button
               onClick={() => setCurrentTab('dashboard')}
-              className="w-full sm:w-auto px-6 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl transition"
+              className="w-full sm:w-auto px-6 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Return to Dashboard
             </button>

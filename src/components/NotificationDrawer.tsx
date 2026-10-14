@@ -196,7 +196,20 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
                     </div>
                     <div className="flex-1 min-w-0 pr-5">
                       <div className="flex items-center justify-between gap-1">
-                        <h4 className="text-xs font-semibold truncate">{notif.title}</h4>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className="text-xs font-semibold truncate">{notif.title}</h4>
+                          {notif.badge && (
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase shrink-0 ${
+                              notif.badge.toLowerCase().includes('request')
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : notif.badge === 'Approved' || notif.badge === 'Confirmed'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : 'bg-stone-100 text-stone-700'
+                            }`}>
+                              {notif.badge}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-stone-400 whitespace-nowrap">
                           {notif.timestamp}
                         </span>

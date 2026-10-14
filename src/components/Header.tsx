@@ -7,47 +7,35 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  Heart,
+  Settings,
+  ChevronDown,
+  Menu,
+  PhoneCall,
+  Search,
   Calendar,
   Clock,
-  MessageSquare,
+  Heart,
   FileText,
-  Search,
-  Shield,
-  Menu,
-  X,
+  MessageSquare,
   Radio,
-  ChevronDown,
-  Plus,
-  Settings,
-  Globe,
-  Stethoscope,
-  Building,
-  LogOut,
-  User,
-  Activity,
-  Scissors,
+  Shield,
 } from 'lucide-react';
 
 interface HeaderProps {
+  onToggleSidebar?: () => void;
   onOpenNotifications: () => void;
   onOpenNewPetModal: () => void;
   onOpenSettings: () => void;
-  onOpenVetPortal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onToggleSidebar,
   onOpenNotifications,
   onOpenNewPetModal,
   onOpenSettings,
-  onOpenVetPortal,
 }) => {
   const {
     currentTab,
-    setCurrentTab,
-    pets,
-    selectedPetId,
-    setSelectedPetId,
     selectedPet,
     isOnline,
     isSimulatedOffline,
@@ -60,518 +48,215 @@ export const Header: React.FC<HeaderProps> = ({
     setCountryByCode,
   } = useApp();
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [petDropdownOpen, setPetDropdownOpen] = useState(false);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-
-  const { user, profile, signOut, switchRole } = useAuth();
 
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Heart },
-    { id: 'clinics', label: 'Clinics & Care', icon: Search },
-    { id: 'book', label: 'Book Visit', icon: Calendar },
-    { id: 'tracker', label: 'Live Tracker', icon: Clock },
-    { id: 'records', label: 'Health Records', icon: FileText },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'shelters', label: 'Shelters & Lost Radar', icon: Radio },
-    { id: 'pets', label: 'My Pets', icon: Shield },
-  ];
-
-  const handleNavClick = (tabId: string) => {
-    setCurrentTab(tabId);
-    setMobileMenuOpen(false);
+  // Title and icon based on current tab
+  const tabMetadata: Record<string, { title: string; subtitle: string; icon: React.ComponentType<{ className?: string }> }> = {
+    dashboard: {
+      title: 'Health Dashboard',
+      subtitle: `Welcome back${selectedPet ? `, ${selectedPet.name}'s parent` : ''}!`,
+      icon: Heart,
+    },
+    clinics: {
+      title: 'Clinics & Care Directory',
+      subtitle: 'Verified 24/7 veterinary hospitals, groomers & clinics',
+      icon: Search,
+    },
+    book: {
+      title: 'Book a Visit',
+      subtitle: 'Schedule checkups, vaccines & grooming sessions',
+      icon: Calendar,
+    },
+    tracker: {
+      title: 'Live Appointment Tracker',
+      subtitle: 'Real-time queue & consultation progress updates',
+      icon: Clock,
+    },
+    records: {
+      title: 'Pet Health Records',
+      subtitle: 'Digital medical passports, vaccinations & clinical notes',
+      icon: FileText,
+    },
+    messages: {
+      title: 'Direct Messages',
+      subtitle: 'Chat directly with attending veterinarians and staff',
+      icon: MessageSquare,
+    },
+    shelters: {
+      title: 'Shelters & Lost Pet Radar',
+      subtitle: 'Community rescues, adoptions & lost pet alerts',
+      icon: Radio,
+    },
+    pets: {
+      title: 'My Pets Management',
+      subtitle: 'Manage pet profiles, microchips & passports',
+      icon: Shield,
+    },
   };
 
+  const currentMeta = tabMetadata[currentTab] || {
+    title: 'SafePaw Connect',
+    subtitle: 'Veterinary care & health records',
+    icon: Shield,
+  };
+
+  const TabIcon = currentMeta.icon;
+
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
-      {/* Top Utility & Connectivity Bar */}
-      <div className="bg-stone-900 text-stone-200 text-xs px-4 py-1.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Country Flag & Region indicator */}
-          <div className="relative">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-xs">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-3">
+          {/* Left: Mobile Sidebar Toggle + Current Page Title / Breadcrumb */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile Hamburger toggle to open left sidebar */}
             <button
-              onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-stone-200 transition font-medium text-[11px]"
-              title="Change Country & Currency"
+              onClick={onToggleSidebar}
+              className="lg:hidden p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition border border-stone-200 shrink-0"
+              aria-label="Toggle navigation menu"
             >
-              <span>{currentCountry.flag}</span>
-              <span>{currentCountry.name}</span>
-              <span className="text-teal-400 font-mono font-semibold">({currentCountry.currencyCode})</span>
-              {locationSettings.isManualOverride && (
-                <span className="text-[9px] bg-teal-900 text-teal-300 px-1 rounded uppercase font-semibold">
-                  Manual
-                </span>
-              )}
-              <ChevronDown className="w-3 h-3 text-stone-400" />
+              <Menu className="w-5 h-5" />
             </button>
 
-            {/* Quick Country Switcher Dropdown */}
-            {countryDropdownOpen && (
-              <div className="absolute left-0 mt-1.5 w-60 bg-white text-stone-800 rounded-xl shadow-xl border border-stone-200 py-1.5 z-50">
-                <div className="px-3 py-1 text-[10px] uppercase font-bold text-stone-600 border-b border-stone-100 flex items-center justify-between">
-                  <span>Switch Country & Currency</span>
-                  <button
-                    onClick={() => {
-                      setCountryDropdownOpen(false);
-                      onOpenSettings();
-                    }}
-                    className="text-teal-700 hover:underline capitalize"
-                  >
-                    All Settings
-                  </button>
-                </div>
-                <div className="max-h-56 overflow-y-auto py-1">
-                  {SUPPORTED_COUNTRIES.map((c) => (
-                    <button
-                      key={c.code}
-                      onClick={() => {
-                        setCountryByCode(c.code);
-                        setCountryDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-stone-50 transition ${
-                        c.code === currentCountry.code ? 'bg-teal-50 font-bold text-teal-900' : 'text-stone-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{c.flag}</span>
-                        <span>{c.name}</span>
-                      </div>
-                      <span className="font-mono text-[11px] text-teal-800">{c.currencyCode}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="p-1 border-t border-stone-100">
-                  <button
-                    onClick={() => {
-                      setCountryDropdownOpen(false);
-                      onOpenSettings();
-                    }}
-                    className="w-full text-center text-xs py-1 text-teal-700 hover:bg-teal-50 rounded font-semibold"
-                  >
-                    Open Full Location Settings...
-                  </button>
-                </div>
+            {/* Current Active Page Title & Subtitle */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200/60 hidden sm:flex items-center justify-center shrink-0">
+                <TabIcon className="w-4 h-4" />
               </div>
-            )}
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-extrabold text-stone-900 tracking-tight truncate flex items-center gap-2">
+                  <span>{currentMeta.title}</span>
+                </h1>
+                <p className="text-[11px] text-stone-500 truncate hidden md:block">
+                  {currentMeta.subtitle}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <span className="hidden md:inline text-stone-500">·</span>
-          <span className="hidden md:inline text-stone-400 text-[11px]">
-            Emergency Hotline: <strong className="text-stone-100 font-mono">{currentCountry.emergencyHotline}</strong>
-          </span>
-        </div>
-
-        {/* Offline & Synchronization Controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            {isOnline ? (
-              <span className="flex items-center gap-1 text-emerald-400 font-medium text-[11px]">
-                <Wifi className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Online</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-amber-400 font-medium text-[11px]">
-                <WifiOff className="w-3.5 h-3.5" />
-                <span>Offline Mode</span>
-                {syncQueue.length > 0 && (
-                  <span className="bg-amber-500/30 text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-mono">
-                    {syncQueue.length} queued
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={toggleSimulatedOffline}
-            title={isSimulatedOffline ? 'Switch to Online Mode' : 'Test Offline Mode'}
-            className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 transition"
-          >
-            {isSyncing ? (
-              <RefreshCw className="w-3 h-3 animate-spin text-teal-400" />
-            ) : isSimulatedOffline ? (
-              'Connect Online'
-            ) : (
-              'Simulate Offline'
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Navigation Bar */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setCurrentTab('dashboard')}
-              className="flex items-center gap-2.5 text-left group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-sm shadow-teal-700/20 group-hover:bg-teal-700 transition">
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 10.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5-2.5 1.12-2.5 2.5 1.12 2.5 2.5 2.5zm-5-2c1.38 0 2.5-1.12 2.5-2.5S8.38 3.5 7 3.5 4.5 4.62 4.5 6s1.12 2.5 2.5 2.5zm10 0c1.38 0 2.5-1.12 2.5-2.5S18.38 3.5 17 3.5 14.5 4.62 14.5 6s1.12 2.5 2.5 2.5zm-1.8 4.2c-.7-.5-1.6-.7-2.7-.7s-2 .2-2.7.7c-2.4 1.7-4.8 5-2.8 7.3 1.2 1.4 3.4 1.5 5.5 1.5s4.3-.1 5.5-1.5c2-2.3-.4-5.6-2.8-7.3z"/>
-                </svg>
-              </div>
-              <div>
-                <span className="text-xl font-bold tracking-tight text-stone-900 group-hover:text-teal-700 transition">
-                  SafePaw<span className="text-teal-600">.</span>
-                </span>
-              </div>
-            </button>
-          </div>
-
-          {/* Desktop Nav Tabs */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-teal-50 text-teal-800 font-semibold'
-                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-teal-600' : 'text-stone-500'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Right Controls: Pet Switcher, Settings & Notifications */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Pet Switcher dropdown */}
-            <div className="relative">
+          {/* Right: Quick Controls (Emergency Hotline, Online Status, Notifications, Settings, Pet Avatar) */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Country & Currency Switcher Pill */}
+            <div className="relative hidden md:block">
               <button
-                onClick={() => setPetDropdownOpen(!petDropdownOpen)}
-                className="flex items-center gap-2 px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg text-left transition"
+                onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 transition font-medium text-xs"
+                title="Change Country & Currency"
               >
-                {selectedPet?.photoUrl ? (
-                  <img
-                    src={selectedPet.photoUrl}
-                    alt={selectedPet.name}
-                    className="w-6 h-6 rounded-full object-cover border border-stone-200"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">
-                    P
-                  </div>
-                )}
-                <div className="hidden sm:block text-left">
-                  <div className="text-xs font-semibold text-stone-900 leading-tight">
-                    {selectedPet?.name || 'Select Pet'}
-                  </div>
-                  <div className="text-[10px] text-stone-500 leading-tight">
-                    {selectedPet?.species}
-                  </div>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-stone-500" />
+                <span>{currentCountry.flag}</span>
+                <span className="font-mono text-teal-800 font-bold">{currentCountry.currencyCode}</span>
+                <ChevronDown className="w-3 h-3 text-stone-400" />
               </button>
 
-              {petDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-stone-200 py-1.5 z-50">
-                  <div className="px-3 py-1.5 border-b border-stone-100 text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
-                    Your Registered Pets
+              {countryDropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-56 bg-white text-stone-800 rounded-2xl shadow-xl border border-stone-200 py-1.5 z-50 animate-fadeIn">
+                  <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-stone-400 border-b border-stone-100 flex items-center justify-between">
+                    <span>Switch Country</span>
+                    <button
+                      onClick={() => {
+                        setCountryDropdownOpen(false);
+                        onOpenSettings();
+                      }}
+                      className="text-teal-700 hover:underline capitalize"
+                    >
+                      Settings
+                    </button>
                   </div>
-                  {pets.map((pet) => (
-                    <button
-                      key={pet.id}
-                      onClick={() => {
-                        setSelectedPetId(pet.id);
-                        setPetDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-stone-50 transition ${
-                        pet.id === selectedPetId ? 'bg-teal-50/60 font-semibold text-teal-900' : 'text-stone-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={pet.photoUrl}
-                          alt={pet.name}
-                          className="w-7 h-7 rounded-full object-cover border border-stone-200"
-                        />
-                        <div>
-                          <div className="text-xs">{pet.name}</div>
-                          <div className="text-[10px] text-stone-500 font-normal">
-                            {pet.breed} · {pet.ageYears}y
-                          </div>
+                  <div className="max-h-52 overflow-y-auto py-1">
+                    {SUPPORTED_COUNTRIES.map((c) => (
+                      <button
+                        key={c.code}
+                        onClick={() => {
+                          setCountryByCode(c.code);
+                          setCountryDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-stone-50 transition ${
+                          c.code === currentCountry.code ? 'bg-teal-50 font-bold text-teal-900' : 'text-stone-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{c.flag}</span>
+                          <span className="truncate">{c.name}</span>
                         </div>
-                      </div>
-                      {pet.id === selectedPetId && (
-                        <span className="w-2 h-2 rounded-full bg-teal-600"></span>
-                      )}
-                    </button>
-                  ))}
-                  <div className="border-t border-stone-100 mt-1 pt-1 px-1">
-                    <button
-                      onClick={() => {
-                        setPetDropdownOpen(false);
-                        onOpenNewPetModal();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-teal-700 hover:bg-teal-50 rounded-lg transition font-medium"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add New Pet Profile</span>
-                    </button>
+                        <span className="font-mono text-[11px] text-teal-800">{c.currencyCode}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Provider Portal CTA Switcher */}
-            <button
-              onClick={onOpenVetPortal}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-teal-300 border border-stone-800 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-              title="Enter Pet Care Service Provider Portal"
+            {/* Emergency Hotline Pill */}
+            <a
+              href={`tel:${currentCountry.emergencyHotline}`}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 transition text-xs font-semibold"
+              title="Click to dial 24/7 Animal Emergency Hotline"
             >
-              <Building className="w-3.5 h-3.5 text-teal-400" />
-              <span>Provider Portal</span>
-            </button>
+              <PhoneCall className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+              <span className="hidden xl:inline">Emergency:</span>
+              <span className="font-mono">{currentCountry.emergencyHotline}</span>
+            </a>
+
+            {/* Online / Offline Sync Indicator & Toggle */}
+            <div className="flex items-center gap-1 bg-stone-50 border border-stone-200 rounded-xl p-1">
+              <button
+                onClick={toggleSimulatedOffline}
+                title={isSimulatedOffline ? 'Switch to Online Mode' : 'Test Offline Mode'}
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-semibold transition"
+              >
+                {isOnline ? (
+                  <span className="flex items-center gap-1 text-emerald-700 text-[11px]">
+                    <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="hidden sm:inline">Online</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-amber-700 text-[11px]">
+                    <WifiOff className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Offline</span>
+                    {syncQueue.length > 0 && (
+                      <span className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0.1 rounded font-mono font-bold">
+                        {syncQueue.length}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {isSyncing && <RefreshCw className="w-3 h-3 animate-spin text-teal-600 ml-0.5" />}
+              </button>
+            </div>
+
 
             {/* Notification Bell */}
             <button
               onClick={onOpenNotifications}
-              className="relative p-2 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition"
+              className="relative p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200 transition cursor-pointer"
               aria-label="View notifications"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4" />
               {unreadNotifsCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center animate-bounce">
                   {unreadNotifsCount}
                 </span>
               )}
             </button>
 
-            {/* Settings Button */}
+            {/* Settings Gear Button */}
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition relative"
-              aria-label="Open Settings menu"
-              title="Settings: Location override, currency & offline mode"
+              className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200 transition relative cursor-pointer"
+              aria-label="Open Settings"
+              title="Location, currency & sync settings"
             >
-              <Settings className="w-5 h-5" />
+              <Settings className="w-4 h-4" />
               {locationSettings.isManualOverride && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-600"></span>
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-600" />
               )}
             </button>
 
-            {/* Authenticated User & Sign Out Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-1.5 p-1 sm:px-2 sm:py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition"
-                title="Account & Session"
-              >
-                {profile?.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt={profile.fullName}
-                    className="w-6 h-6 rounded-full object-cover border border-stone-300"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px] font-bold">
-                    {profile?.fullName ? profile.fullName.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-                <span className="hidden sm:inline text-stone-700 truncate max-w-[90px]">
-                  {profile?.fullName?.split(' ')[0] || 'Account'}
-                </span>
-                <ChevronDown className="w-3 h-3 text-stone-500" />
-              </button>
 
-              {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 z-50">
-                  <div className="px-3 py-2 border-b border-stone-100">
-                    <div className="text-xs font-bold text-stone-900 truncate">
-                      {profile?.fullName || user?.email}
-                    </div>
-                    <div className="text-[10px] text-stone-500 truncate">{user?.email}</div>
-                    <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
-                      <Shield className="w-2.5 h-2.5" />
-                      <span>
-                        {profile?.role === 'veterinarian'
-                          ? 'Clinical Veterinarian'
-                          : profile?.role === 'service_provider'
-                          ? (profile?.providerType === 'grooming_salon' ? 'Pet Grooming Salon' : 'Veterinary Clinic')
-                          : profile?.role === 'shelter_rescuer'
-                          ? 'Shelter & Rescue'
-                          : 'Pet Owner'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-1 space-y-0.5">
-                    {profile?.role !== 'pet_owner' && (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('pet_owner');
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
-                      >
-                        <Heart className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Pet Owner</span>
-                      </button>
-                    )}
-
-                    {!(profile?.role === 'service_provider' && profile?.providerType === 'veterinary_clinic') && (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('service_provider', {
-                            providerType: 'veterinary_clinic',
-                            businessName: 'Greenwood Animal Hospital & Wellness Center',
-                          });
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
-                      >
-                        <Activity className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Veterinary Clinic</span>
-                      </button>
-                    )}
-
-                    {!(profile?.role === 'service_provider' && profile?.providerType === 'grooming_salon') && (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('service_provider', {
-                            providerType: 'grooming_salon',
-                            businessName: 'Paws & Bubbles Pet Luxury Spa & Grooming',
-                          });
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
-                      >
-                        <Scissors className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Grooming Salon</span>
-                      </button>
-                    )}
-
-                    {profile?.role !== 'shelter_rescuer' && (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('shelter_rescuer');
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
-                      >
-                        <Shield className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Shelter & Rescue</span>
-                      </button>
-                    )}
-
-                    {profile?.role !== 'veterinarian' && (
-                      <button
-                        onClick={async () => {
-                          setUserDropdownOpen(false);
-                          await switchRole('veterinarian');
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition font-medium"
-                      >
-                        <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Switch to Clinical Vet Doctor</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        onOpenSettings();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 rounded-lg transition"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-stone-500" />
-                      <span>Account & Preferences</span>
-                    </button>
-
-                    <button
-                      onClick={async () => {
-                        setUserDropdownOpen(false);
-                        await signOut();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition font-medium"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-100"
-              aria-label="Open navigation menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
           </div>
         </div>
       </div>
-
-      {/* Mobile Drawer Menu */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-stone-200 bg-white px-4 pt-2 pb-4 space-y-1 shadow-lg">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-teal-50 text-teal-900 font-semibold'
-                    : 'text-stone-700 hover:bg-stone-50'
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-teal-600' : 'text-stone-500'}`} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-          <div className="pt-2 mt-2 border-t border-stone-100 space-y-1">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenVetPortal();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold text-teal-800 bg-teal-50 hover:bg-teal-100"
-            >
-              <Building className="w-5 h-5 text-teal-600" />
-              <span>Provider Portal</span>
-            </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenSettings();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-50"
-            >
-              <Settings className="w-5 h-5 text-stone-500" />
-              <span>Settings (Country, Currency & Offline)</span>
-            </button>
-            <button
-              onClick={async () => {
-                setMobileMenuOpen(false);
-                await signOut();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition"
-            >
-              <LogOut className="w-5 h-5 text-rose-600" />
-              <span>Sign Out ({user?.email})</span>
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

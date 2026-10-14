@@ -24,6 +24,7 @@ import {
   Building,
   User,
   Loader2,
+  LogOut,
 } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -51,7 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     appointments,
   } = useApp();
 
-  const { user, profile, switchRole, refreshProfile } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const [roleUpdating, setRoleUpdating] = useState(false);
   const [roleSuccessMessage, setRoleSuccessMessage] = useState<string | null>(null);
 
@@ -516,18 +517,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
-              {/* Role Switcher & Sync Card */}
-              <div className="p-5 rounded-2xl border border-teal-200 bg-teal-50/50 space-y-4">
+              {/* Account Role & Isolation Info Card */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-stone-50/70 space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                     <Shield className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-stone-900">
-                      Account Role & Access Mode
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-stone-900">
+                        Active Account Role: {profile?.role === 'service_provider' ? 'Service Provider' : profile?.role === 'veterinarian' ? 'Attending Veterinarian' : profile?.role === 'shelter_rescuer' ? 'Shelter & Rescue' : 'Pet Owner'}
+                      </h3>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                        Current
+                      </span>
+                    </div>
                     <p className="text-xs text-stone-600 leading-relaxed">
-                      Switch between <strong>Pet Owner</strong> and <strong>Pet Care Service Provider</strong> modes at any time. Your profile and permissions update immediately.
+                      SafePaw isolates Pet Owner and Service Provider profiles for clinical privacy and account security. To switch roles between Pet Owner and Service Provider or Shelter consoles, you must sign out first and log in with that role's credentials.
                     </p>
                   </div>
                 </div>
@@ -539,63 +545,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   </div>
                 )}
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                  {profile?.role !== 'service_provider' && profile?.role !== 'veterinarian' ? (
-                    <button
-                      type="button"
-                      disabled={roleUpdating}
-                      onClick={async () => {
-                        setRoleUpdating(true);
-                        setRoleSuccessMessage(null);
-                        try {
-                          await switchRole('service_provider', {
-                            providerType: 'veterinary_clinic',
-                            businessName: 'Greenwood Animal Hospital & Wellness Center',
-                          });
-                          await refreshProfile();
-                          setRoleSuccessMessage('Successfully switched to Pet Care Service Provider!');
-                        } catch (err: any) {
-                          setRoleSuccessMessage(err.message || 'Failed to update role.');
-                        } finally {
-                          setRoleUpdating(false);
-                        }
-                      }}
-                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                    >
-                      {roleUpdating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Building className="w-4 h-4" />
-                      )}
-                      <span>Switch Role to Pet Care Service Provider</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={roleUpdating}
-                      onClick={async () => {
-                        setRoleUpdating(true);
-                        setRoleSuccessMessage(null);
-                        try {
-                          await switchRole('pet_owner');
-                          await refreshProfile();
-                          setRoleSuccessMessage('Successfully changed role to Pet Owner.');
-                        } catch (err: any) {
-                          setRoleSuccessMessage(err.message || 'Failed to update role.');
-                        } finally {
-                          setRoleUpdating(false);
-                        }
-                      }}
-                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-stone-700 hover:bg-stone-800 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                    >
-                      {roleUpdating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Heart className="w-4 h-4" />
-                      )}
-                      <span>Switch Role to Pet Owner</span>
-                    </button>
-                  )}
+                <div className="pt-1 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      onClose();
+                      await signOut();
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
 
                   <button
                     type="button"
@@ -612,8 +573,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   </button>
                 </div>
 
-                <div className="p-3 rounded-xl bg-white border border-teal-100 text-[11px] text-stone-500 leading-relaxed">
-                  <strong>Local Storage Active:</strong> All user records, appointments, health passports, and chat messages are encrypted and persisted reliably in your device storage.
+                <div className="p-3 rounded-xl bg-white border border-stone-200 text-[11px] text-stone-500 leading-relaxed">
+                  <strong>Session Security:</strong> Clinical access, customer bookings, and patient records are safeguarded. Direct cross-role switching is disabled.
                 </div>
               </div>
             </div>

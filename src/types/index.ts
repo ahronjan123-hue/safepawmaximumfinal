@@ -85,12 +85,14 @@ export interface Clinic {
 }
 
 export type AppointmentStatus =
+  | 'requested'
   | 'scheduled'
   | 'checked_in'
   | 'in_consultation'
   | 'prescriptions_ready'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'declined';
 
 export interface Appointment {
   id: string;
@@ -199,6 +201,10 @@ export interface NotificationItem {
   read: boolean;
   actionTab?: string;
   badge?: string;
+  targetRole?: UserRole | 'all';
+  targetClinicId?: string;
+  targetProviderType?: ProviderServiceType;
+  appointmentId?: string;
 }
 
 export interface LostPetReport {

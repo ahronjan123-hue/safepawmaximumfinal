@@ -356,6 +356,7 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     read: false,
     actionTab: 'records',
     badge: 'Reminder',
+    targetRole: 'pet_owner',
   },
   {
     id: 'notif-2',
@@ -366,6 +367,7 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     read: false,
     actionTab: 'tracker',
     badge: 'Confirmed',
+    targetRole: 'pet_owner',
   },
 ];
 

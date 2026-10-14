@@ -367,10 +367,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         : {
             providerType: vetDetails?.providerType || profile.providerType || 'veterinary_clinic',
-            businessName: vetDetails?.businessName || profile.businessName || 'Greenwood Animal Hospital & Wellness Center',
+            businessName:
+              vetDetails?.businessName ||
+              ((vetDetails?.providerType || profile.providerType) === 'grooming_salon'
+                ? 'Paws & Bubbles Pet Luxury Spa & Grooming'
+                : profile.businessName || 'Greenwood Animal Hospital & Wellness Center'),
             licenseNumber: vetDetails?.licenseNumber || profile.licenseNumber || 'PRC-VET-0049182',
-            clinicId: vetDetails?.clinicId || profile.clinicId || '00000000-0000-0000-0000-000000000001',
-            clinicName: vetDetails?.clinicName || profile.clinicName || 'Greenwood Animal Hospital & Wellness Center',
+            clinicId:
+              vetDetails?.clinicId ||
+              ((vetDetails?.providerType || profile.providerType) === 'grooming_salon'
+                ? 'provider-grooming-01'
+                : profile.clinicId || '00000000-0000-0000-0000-000000000001'),
+            clinicName:
+              vetDetails?.clinicName ||
+              ((vetDetails?.providerType || profile.providerType) === 'grooming_salon'
+                ? 'Paws & Bubbles Pet Luxury Spa & Grooming'
+                : profile.clinicName || 'Greenwood Animal Hospital & Wellness Center'),
             specialization: vetDetails?.specialization || profile.specialization || 'Clinical Veterinary Medicine',
             vetStatus: 'approved',
           }),
@@ -445,16 +457,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const demoProfile: UserProfile = {
         id: demoUser.id,
         email: demoUser.email!,
-        fullName: 'Greenwood Care Management',
+        fullName: providerType === 'grooming_salon' ? 'Paws & Bubbles Care Management' : 'Greenwood Care Management',
         avatarUrl: demoUser.user_metadata?.avatar_url,
         role: 'service_provider',
         providerType,
         businessName: bName,
         isVerified: true,
-        clinicId: '00000000-0000-0000-0000-000000000001',
+        clinicId: providerType === 'grooming_salon' ? 'provider-grooming-01' : '00000000-0000-0000-0000-000000000001',
         clinicName: bName,
-        phone: '+63 2 8824 9912',
-        bio: 'Comprehensive veterinary and pet wellness facility equipped with modern diagnostics.',
+        phone: providerType === 'grooming_salon' ? '+63 917 889 0012' : '+63 2 8824 9912',
+        bio: providerType === 'grooming_salon' ? 'Luxury pet grooming boutique & spa facility.' : 'Comprehensive veterinary and pet wellness facility equipped with modern diagnostics.',
         createdAt: new Date().toISOString(),
       };
 

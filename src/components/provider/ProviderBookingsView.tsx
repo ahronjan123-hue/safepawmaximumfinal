@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ProviderServiceType, Appointment } from '../../types';
+import { useApp } from '../../context/AppContext';
 import {
   Calendar,
   Clock,
@@ -16,6 +17,7 @@ import {
   AlertTriangle,
   User,
   Phone,
+  XCircle,
 } from 'lucide-react';
 
 interface ProviderBookingsViewProps {
@@ -31,6 +33,7 @@ export const ProviderBookingsView: React.FC<ProviderBookingsViewProps> = ({
   onShowToast,
   formatPrice,
 }) => {
+  const { acceptAppointment, declineAppointment } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'active' | 'completed'>('all');
 
@@ -228,70 +231,140 @@ export const ProviderBookingsView: React.FC<ProviderBookingsViewProps> = ({
       {/* 1. VETERINARY CLINIC BOOKINGS LIST */}
       {/* ========================================================= */}
       {providerType === 'veterinary_clinic' && (
-        <div className="space-y-3">
-          {appointments.length === 0 ? (
+        <div className="space-y-4">
+          {/* Pending Requests Section for Vet Clinic */}
+          {appointments.filter((a) => a.status === 'requested' && !a.clinicId.includes('grooming')).length > 0 && (
+            <div className="space-y-2.5 p-4 rounded-2xl bg-amber-950/20 border border-amber-500/30">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+                <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>
+                  Pending Clinical Appointment Requests ({appointments.filter((a) => a.status === 'requested' && !a.clinicId.includes('grooming')).length})
+                </span>
+                <span className="text-[10px] text-stone-400 font-normal">— Awaiting clinic review</span>
+              </div>
+
+              {appointments
+                .filter((a) => a.status === 'requested' && !a.clinicId.includes('grooming'))
+                .map((req) => (
+                  <div
+                    key={req.id}
+                    className="p-3.5 rounded-xl bg-stone-900 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">{req.petName}</span>
+                        <span className="text-stone-500">·</span>
+                        <span className="text-xs text-amber-300 font-semibold">{req.serviceName}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 uppercase">
+                          Requested
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-stone-400 flex flex-wrap gap-2">
+                        <span>Parent: <strong className="text-stone-200">{req.ownerName}</strong> ({req.ownerPhone})</span>
+                        <span>·</span>
+                        <span>Date: <strong className="text-white">{req.date} at {req.time}</strong></span>
+                        <span>·</span>
+                        <span>Fee: <strong className="text-teal-400">{formatPrice(req.baseCostUSD)}</strong></span>
+                      </div>
+                      {req.symptoms && (
+                        <div className="text-[11px] text-stone-300">
+                          Complaint: {req.symptoms}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          acceptAppointment(req.id);
+                          onShowToast(`Clinical appointment for ${req.petName} confirmed!`);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Accept & Confirm</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          declineAppointment(req.id, 'Schedule unavailable at requested time');
+                          onShowToast(`Appointment request for ${req.petName} declined.`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-rose-950 text-stone-300 hover:text-rose-300 text-xs font-semibold transition border border-stone-700 cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Scheduled Appointments */}
+          {appointments.filter((a) => a.status !== 'requested' && a.status !== 'declined' && !a.clinicId.includes('grooming')).length === 0 ? (
             <div className="p-8 text-center bg-stone-950 rounded-3xl border border-stone-800 text-stone-400 text-xs">
-              No appointments scheduled for this filter.
+              No active appointments scheduled for this filter.
             </div>
           ) : (
-            appointments.map((apt) => (
-              <div
-                key={apt.id}
-                className="p-4 sm:p-5 rounded-2xl bg-stone-950 border border-stone-800 hover:border-teal-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div className="flex items-start gap-4 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 font-bold flex flex-col items-center justify-center shrink-0">
-                    <span className="text-xs font-mono">{apt.time}</span>
-                    <span className="text-[9px] text-stone-400">{apt.date}</span>
-                  </div>
-
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold text-white truncate">
-                        {apt.petName}
-                      </span>
-                      <span className="text-stone-500">·</span>
-                      <span className="text-xs text-stone-300 font-medium truncate">
-                        {apt.serviceName}
-                      </span>
+            appointments
+              .filter((a) => a.status !== 'requested' && a.status !== 'declined' && !a.clinicId.includes('grooming'))
+              .map((apt) => (
+                <div
+                  key={apt.id}
+                  className="p-4 sm:p-5 rounded-2xl bg-stone-950 border border-stone-800 hover:border-teal-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 font-bold flex flex-col items-center justify-center shrink-0">
+                      <span className="text-xs font-mono">{apt.time}</span>
+                      <span className="text-[9px] text-stone-400">{apt.date}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
-                      <span>Owner: <strong className="text-stone-200">{apt.ownerName || 'Verified Guardian'}</strong></span>
-                      <span>·</span>
-                      <span>Vet: <strong className="text-teal-400">{apt.vetName || 'Dr. Attending'}</strong></span>
-                      <span>·</span>
-                      <span>Fee: <strong className="text-stone-200">{formatPrice(apt.baseCostUSD)}</strong></span>
-                    </div>
-
-                    {apt.symptoms && (
-                      <div className="text-[11px] text-amber-300/90 font-medium">
-                        Chief Complaint: {apt.symptoms}
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-white truncate">
+                          {apt.petName}
+                        </span>
+                        <span className="text-stone-500">·</span>
+                        <span className="text-xs text-stone-300 font-medium truncate">
+                          {apt.serviceName}
+                        </span>
                       </div>
-                    )}
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
+                        <span>Owner: <strong className="text-stone-200">{apt.ownerName || 'Verified Guardian'}</strong></span>
+                        <span>·</span>
+                        <span>Vet: <strong className="text-teal-400">{apt.vetName || 'Dr. Attending'}</strong></span>
+                        <span>·</span>
+                        <span>Fee: <strong className="text-stone-200">{formatPrice(apt.baseCostUSD)}</strong></span>
+                      </div>
+
+                      {apt.symptoms && (
+                        <div className="text-[11px] text-amber-300/90 font-medium">
+                          Chief Complaint: {apt.symptoms}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      apt.status === 'checked_in' || apt.status === 'in_consultation'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : apt.status === 'completed'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-stone-800 text-stone-300'
+                    }`}>
+                      {apt.status.replace('_', ' ')}
+                    </span>
+
+                    <button
+                      onClick={() => onShowToast(`Consultation EMR chart opened for ${apt.petName}`)}
+                      className="px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500 hover:text-stone-950 text-teal-400 text-xs font-bold transition border border-teal-500/20 cursor-pointer"
+                    >
+                      Open Chart
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    apt.status === 'checked_in' || apt.status === 'in_consultation'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      : apt.status === 'completed'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-stone-800 text-stone-300'
-                  }`}>
-                    {apt.status.replace('_', ' ')}
-                  </span>
-
-                  <button
-                    onClick={() => onShowToast(`Consultation EMR chart opened for ${apt.petName}`)}
-                    className="px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500 hover:text-stone-950 text-teal-400 text-xs font-bold transition border border-teal-500/20 cursor-pointer"
-                  >
-                    Open Chart
-                  </button>
-                </div>
-              </div>
-            ))
+              ))
           )}
         </div>
       )}
@@ -300,77 +373,225 @@ export const ProviderBookingsView: React.FC<ProviderBookingsViewProps> = ({
       {/* 2. SPA & GROOMING SALON BOOKINGS LIST */}
       {/* ========================================================= */}
       {providerType === 'grooming_salon' && (
-        <div className="space-y-3">
-          {groomingBookings.map((b) => (
-            <div
-              key={b.id}
-              className="p-4 sm:p-5 rounded-2xl bg-stone-950 border border-stone-800 hover:border-teal-500/40 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-            >
-              <div className="flex items-start gap-4 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 font-bold flex flex-col items-center justify-center shrink-0">
-                  <Scissors className="w-5 h-5" />
-                  <span className="text-[9px] text-stone-400 mt-0.5">{b.time}</span>
-                </div>
-
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-white">
-                      {b.petName}
-                    </span>
-                    <span className="text-[11px] text-stone-400">({b.breed})</span>
-                    <span className="text-stone-600">·</span>
-                    <span className="text-xs text-teal-300 font-bold">
-                      {b.package}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
-                    <span>Parent: <strong className="text-stone-200">{b.ownerName}</strong> ({b.phone})</span>
-                    <span>·</span>
-                    <span>Stylist: <strong className="text-amber-300">{b.stylist}</strong></span>
-                    <span>·</span>
-                    <span>Fee: <strong className="text-stone-200">{formatPrice(b.priceUSD)}</strong></span>
-                  </div>
-
-                  <div className="text-[11px] text-stone-400">
-                    Coat Alert: <span className="text-stone-300 font-medium">{b.coatCondition}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Stage & Controls */}
-              <div className="flex flex-wrap items-center gap-3 self-end lg:self-center shrink-0">
-                <div className="text-right">
-                  <div className="text-[10px] text-stone-400 uppercase font-mono tracking-wider">Current Stage</div>
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mt-0.5 ${
-                    b.stage === 'Ready for Pickup'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse'
-                      : b.stage === 'Completed'
-                      ? 'bg-stone-800 text-stone-400'
-                      : 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
-                  }`}>
-                    {b.stage}
+        <div className="space-y-5">
+          {/* A. PENDING APPOINTMENT REQUESTS FROM PET OWNERS (SPA & GROOMING ONLY) */}
+          {appointments.filter((a) => a.status === 'requested' && (a.clinicId === 'provider-grooming-01' || a.serviceName.toLowerCase().includes('groom') || a.serviceName.toLowerCase().includes('spa'))).length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-950/20 border-2 border-amber-500/40 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                  <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span>
+                    Pending Client Appointment Requests ({appointments.filter((a) => a.status === 'requested' && (a.clinicId === 'provider-grooming-01' || a.serviceName.toLowerCase().includes('groom') || a.serviceName.toLowerCase().includes('spa'))).length})
                   </span>
                 </div>
-
-                <button
-                  onClick={() => handleAdvanceGroomingStage(b.id)}
-                  className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition cursor-pointer shadow-sm"
-                >
-                  Advance Stage →
-                </button>
-
-                {b.stage === 'Ready for Pickup' && (
-                  <button
-                    onClick={() => onShowToast(`Ready for pickup SMS notification sent to ${b.ownerName}`)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer"
-                  >
-                    Send Pickup SMS
-                  </button>
-                )}
+                <span className="text-[10px] text-amber-400/90 uppercase tracking-wider font-semibold">
+                  Awaiting Spa & Grooming Approval
+                </span>
               </div>
+
+              {appointments
+                .filter((a) => a.status === 'requested' && (a.clinicId === 'provider-grooming-01' || a.serviceName.toLowerCase().includes('groom') || a.serviceName.toLowerCase().includes('spa')))
+                .map((req) => (
+                  <div
+                    key={req.id}
+                    className="p-4 rounded-xl bg-stone-950 border border-amber-500/30 hover:border-amber-400 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm"
+                  >
+                    <div className="flex items-start gap-4 min-w-0">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold flex flex-col items-center justify-center shrink-0">
+                        <Scissors className="w-5 h-5" />
+                        <span className="text-[9px] text-amber-300 mt-0.5">{req.time}</span>
+                      </div>
+
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-extrabold text-white">
+                            {req.petName}
+                          </span>
+                          <span className="text-stone-600">·</span>
+                          <span className="text-xs text-amber-300 font-bold">
+                            {req.serviceName}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
+                            New Request
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
+                          <span>Guardian: <strong className="text-stone-200">{req.ownerName || 'Pet Parent'}</strong> ({req.ownerPhone})</span>
+                          <span>·</span>
+                          <span>Requested Date: <strong className="text-white">{req.date} at {req.time}</strong></span>
+                          <span>·</span>
+                          <span>Service Fee: <strong className="text-teal-300">{formatPrice(req.baseCostUSD)}</strong></span>
+                        </div>
+
+                        {req.symptoms && (
+                          <div className="text-[11px] text-stone-300 bg-stone-900/80 p-2.5 rounded-xl border border-stone-800">
+                            <span className="text-amber-400 font-medium">Special Care / Grooming Notes:</span> {req.symptoms}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                      <button
+                        onClick={() => {
+                          acceptAppointment(req.id);
+                          onShowToast(`Appointment for ${req.petName} accepted and confirmed! Pet owner has been notified.`);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Accept & Confirm</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          declineAppointment(req.id, 'Stylist bay fully booked at requested time slot');
+                          onShowToast(`Appointment request for ${req.petName} declined.`);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-rose-950 text-stone-400 hover:text-rose-300 text-xs font-semibold transition border border-stone-800 hover:border-rose-900 cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
             </div>
-          ))}
+          )}
+
+          {/* Real Confirmed Appointments for Spa & Grooming */}
+          {appointments
+            .filter((a) => a.status !== 'requested' && a.status !== 'declined' && (a.clinicId === 'provider-grooming-01' || a.serviceName.toLowerCase().includes('groom') || a.serviceName.toLowerCase().includes('spa')))
+            .map((apt) => (
+              <div
+                key={apt.id}
+                className="p-4 sm:p-5 rounded-2xl bg-stone-950 border border-teal-500/30 hover:border-teal-500/50 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+              >
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 font-bold flex flex-col items-center justify-center shrink-0">
+                    <Scissors className="w-5 h-5" />
+                    <span className="text-[9px] text-stone-400 mt-0.5">{apt.time}</span>
+                  </div>
+
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-white">
+                        {apt.petName}
+                      </span>
+                      <span className="text-stone-600">·</span>
+                      <span className="text-xs text-teal-300 font-bold">
+                        {apt.serviceName}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                        Confirmed Booking
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
+                      <span>Parent: <strong className="text-stone-200">{apt.ownerName || 'Verified Guardian'}</strong> ({apt.ownerPhone})</span>
+                      <span>·</span>
+                      <span>Date: <strong className="text-stone-200">{apt.date} at {apt.time}</strong></span>
+                      <span>·</span>
+                      <span>Fee: <strong className="text-stone-200">{formatPrice(apt.baseCostUSD)}</strong></span>
+                    </div>
+
+                    {apt.symptoms && (
+                      <div className="text-[11px] text-stone-400">
+                        Care Notes: <span className="text-stone-300 font-medium">{apt.symptoms}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                    {apt.status === 'scheduled' ? 'Scheduled in Bay' : apt.status.replace('_', ' ')}
+                  </span>
+                  <button
+                    onClick={() => onShowToast(`Grooming intake protocol opened for ${apt.petName}`)}
+                    className="px-3.5 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500 hover:text-stone-950 text-teal-400 text-xs font-bold transition border border-teal-500/20 cursor-pointer"
+                  >
+                    View Card
+                  </button>
+                </div>
+              </div>
+            ))}
+
+          {/* Active Demo Grooming Sessions */}
+          <div className="space-y-3 pt-2">
+            <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+              Active Grooming Bays & Floor Progress
+            </div>
+            {groomingBookings.map((b) => (
+              <div
+                key={b.id}
+                className="p-4 sm:p-5 rounded-2xl bg-stone-950 border border-stone-800 hover:border-teal-500/40 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+              >
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 font-bold flex flex-col items-center justify-center shrink-0">
+                    <Scissors className="w-5 h-5" />
+                    <span className="text-[9px] text-stone-400 mt-0.5">{b.time}</span>
+                  </div>
+
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-white">
+                        {b.petName}
+                      </span>
+                      <span className="text-[11px] text-stone-400">({b.breed})</span>
+                      <span className="text-stone-600">·</span>
+                      <span className="text-xs text-teal-300 font-bold">
+                        {b.package}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
+                      <span>Parent: <strong className="text-stone-200">{b.ownerName}</strong> ({b.phone})</span>
+                      <span>·</span>
+                      <span>Stylist: <strong className="text-amber-300">{b.stylist}</strong></span>
+                      <span>·</span>
+                      <span>Fee: <strong className="text-stone-200">{formatPrice(b.priceUSD)}</strong></span>
+                    </div>
+
+                    <div className="text-[11px] text-stone-400">
+                      Coat Alert: <span className="text-stone-300 font-medium">{b.coatCondition}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Stage & Controls */}
+                <div className="flex flex-wrap items-center gap-3 self-end lg:self-center shrink-0">
+                  <div className="text-right">
+                    <div className="text-[10px] text-stone-400 uppercase font-mono tracking-wider">Current Stage</div>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mt-0.5 ${
+                      b.stage === 'Ready for Pickup'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse'
+                        : b.stage === 'Completed'
+                        ? 'bg-stone-800 text-stone-400'
+                        : 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                    }`}>
+                      {b.stage}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handleAdvanceGroomingStage(b.id)}
+                    className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition cursor-pointer shadow-sm"
+                  >
+                    Advance Stage →
+                  </button>
+
+                  {b.stage === 'Ready for Pickup' && (
+                    <button
+                      onClick={() => onShowToast(`Ready for pickup SMS notification sent to ${b.ownerName}`)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer"
+                    >
+                      Send Pickup SMS
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

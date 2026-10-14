@@ -45,17 +45,15 @@ import { ProviderReportsView } from './ProviderReportsView';
 import { ProviderSettingsView } from './ProviderSettingsView';
 
 interface ProviderPortalDashboardProps {
-  onBackToPetOwner?: () => void;
   onOpenNotifications: () => void;
   onOpenSettings: () => void;
 }
 
 export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = ({
-  onBackToPetOwner,
   onOpenNotifications,
   onOpenSettings,
 }) => {
-  const { profile, user, signOut, switchRole } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const { appointments, pets, clinics, formatPrice, notifications } = useApp();
 
   // Active provider type (strictly bound to authenticated profile)
@@ -189,10 +187,31 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
     },
   ]);
 
+  // Compute pending appointment requests tailored to this provider
+  const isGrooming = providerType === 'grooming_salon';
+  const myPendingRequests = appointments.filter((a) => {
+    if (a.status !== 'requested') return false;
+    if (isGrooming) {
+      return (
+        a.clinicId === 'provider-grooming-01' ||
+        a.serviceName.toLowerCase().includes('groom') ||
+        a.serviceName.toLowerCase().includes('spa') ||
+        a.clinicName.toLowerCase().includes('groom') ||
+        a.clinicName.toLowerCase().includes('spa')
+      );
+    }
+    return a.clinicId === '00000000-0000-0000-0000-000000000001' || !a.clinicId.includes('grooming');
+  });
+
   // Sidebar navigation items
   const sidebarNavItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: Activity },
-    { id: 'bookings' as const, label: 'Bookings', icon: Calendar, badge: metrics.activeBookings },
+    {
+      id: 'bookings' as const,
+      label: 'Bookings',
+      icon: Calendar,
+      badge: myPendingRequests.length > 0 ? `${myPendingRequests.length} New` : metrics.activeBookings,
+    },
     { id: 'clients' as const, label: 'Clients', icon: Users },
     { id: 'pets' as const, label: 'Pets', icon: Heart },
     { id: 'messages' as const, label: 'Messages', icon: MessageSquare, badge: 3 },
@@ -289,16 +308,7 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
               </span>
             </button>
 
-            {/* Switch to Pet Owner View Button */}
-            {onBackToPetOwner && (
-              <button
-                onClick={onBackToPetOwner}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs font-semibold text-stone-300 hover:text-white transition cursor-pointer"
-              >
-                <Heart className="w-3.5 h-3.5 text-rose-400" />
-                <span>Pet Owner Mode</span>
-              </button>
-            )}
+
 
             {/* Profile Menu Dropdown */}
             <div className="relative">
@@ -333,22 +343,11 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
                     <Settings className="w-4 h-4 text-stone-400" />
                     <span>Provider Settings</span>
                   </button>
-                  {onBackToPetOwner && (
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        onBackToPetOwner();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-stone-300 hover:bg-stone-900 hover:text-white transition cursor-pointer"
-                    >
-                      <Heart className="w-4 h-4 text-rose-400" />
-                      <span>Switch to Pet Owner Dashboard</span>
-                    </button>
-                  )}
                   <div className="border-t border-stone-800 pt-1">
                     <button
                       onClick={() => signOut()}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-950/40 transition cursor-pointer font-semibold"
+                      title="Sign out of account"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Sign Out</span>
@@ -361,10 +360,61 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
         </div>
       </header>
 
-      {/* Modern Horizontal Navigation Bar for Service Provider */}
-      <div className="bg-stone-900 border-b border-stone-800 sticky top-16 z-30 px-4 sm:px-6 lg:px-8 py-2.5 shadow-md">
-        <div className="max-w-[1700px] mx-auto flex items-center justify-between overflow-x-auto gap-2">
-          <div className="flex items-center gap-1.5 shrink-0">
+      {/* Mobile Navigation Strip for Service Provider */}
+      <div className="md:hidden bg-stone-900 border-b border-stone-800 sticky top-16 z-30 px-4 py-2.5 shadow-md">
+        <div className="flex items-center overflow-x-auto gap-1.5 scrollbar-none">
+          {sidebarNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeSidebarTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveSidebarTab(item.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-teal-500 text-stone-950 font-bold shadow-md'
+                    : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-stone-950' : 'text-stone-400'}`} />
+                <span>{item.label}</span>
+                {item.badge !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      isActive ? 'bg-stone-950 text-teal-400' : 'bg-stone-800 text-teal-300'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* MAIN CONTAINER: SIDEBAR + CONTENT LAYOUT */}
+      {/* ========================================================= */}
+      <div className="max-w-[1700px] w-full mx-auto flex-1 flex flex-col md:flex-row min-w-0">
+        {/* Left Provider Sidebar Navigation */}
+        <aside className="hidden md:flex flex-col w-64 shrink-0 bg-stone-950/80 border-r border-stone-800 p-4 space-y-5 sticky top-18 h-[calc(100vh-4.5rem)] overflow-y-auto">
+          {/* Facility Type Badge */}
+          <div className="px-3 py-2 rounded-xl bg-stone-900 border border-stone-800">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-stone-400">
+              Facility Console
+            </div>
+            <div className="text-xs font-extrabold text-teal-300 mt-0.5 flex items-center gap-1.5">
+              <ProviderIcon className="w-3.5 h-3.5 text-teal-400" />
+              <span>{providerTypeLabel}</span>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="space-y-1 flex-1">
+            <div className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">
+              Management
+            </div>
             {sidebarNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeSidebarTab === item.id;
@@ -372,17 +422,19 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
                 <button
                   key={item.id}
                   onClick={() => setActiveSidebarTab(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     isActive
-                      ? 'bg-teal-500 text-stone-950 font-bold shadow-md'
-                      : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                      ? 'bg-teal-500 text-stone-950 font-bold shadow-md shadow-teal-500/20'
+                      : 'text-stone-300 hover:text-white hover:bg-stone-900'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-stone-950' : 'text-stone-400'}`} />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-stone-950' : 'text-stone-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
                   {item.badge !== undefined && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                         isActive ? 'bg-stone-950 text-teal-400' : 'bg-stone-800 text-teal-300'
                       }`}
                     >
@@ -394,20 +446,54 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
             })}
           </div>
 
-          <div className="hidden md:flex items-center gap-2 shrink-0">
-            <span className="text-[11px] text-stone-400">
-              Facility Type: <strong className="text-teal-300">{providerTypeLabel}</strong>
-            </span>
+          {/* Sign Out button */}
+          <div className="pt-3 border-t border-stone-800">
+            <button
+              onClick={() => signOut()}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-850 border border-stone-800 text-xs font-bold text-rose-400 hover:text-rose-300 transition cursor-pointer"
+              title="Sign out of account"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* ========================================================= */}
-      {/* MAIN CONTAINER: FULL-WIDTH CLEAN CONTENT AREA */}
-      {/* ========================================================= */}
-      <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
-        {/* MAIN DASHBOARD CONTENT */}
-        <main className="space-y-6 min-w-0">
+        {/* MAIN DASHBOARD CONTENT AREA */}
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 space-y-6 min-w-0">
+          <main className="space-y-6 min-w-0">
+          {/* Pending Appointment Requests Alert Banner */}
+          {myPendingRequests.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-stone-950 to-stone-900 border-2 border-amber-500/50 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
+                  <Clock className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-extrabold text-white">
+                      {myPendingRequests.length} New Appointment Request{myPendingRequests.length > 1 ? 's' : ''} Received!
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
+                      Action Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-300 mt-0.5">
+                    Pet owner{myPendingRequests.length > 1 ? 's have' : ' has'} requested booking with <strong className="text-amber-200">{businessName}</strong>. Review dates, services, and confirm slots.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setActiveSidebarTab('bookings')}
+                className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer shrink-0"
+              >
+                <span>Review & Confirm Requests</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Facility Operations Control Banner */}
           <div className="bg-stone-950 p-5 rounded-3xl border border-stone-800 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1391,6 +1477,7 @@ export const ProviderPortalDashboard: React.FC<ProviderPortalDashboardProps> = (
           />
         )}
       </main>
+        </div>
       </div>
 
       {/* ========================================================= */}

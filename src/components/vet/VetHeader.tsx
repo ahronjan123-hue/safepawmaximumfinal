@@ -241,17 +241,6 @@ export const VetHeader: React.FC<VetHeaderProps> = ({
                   ))}
                   <div className="border-t border-stone-800 mt-1 pt-1 px-1 space-y-0.5">
                     <button
-                      onClick={async () => {
-                        setVetDropdownOpen(false);
-                        logoutVet();
-                        await switchRole('pet_owner');
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-stone-300 hover:bg-stone-800 rounded-lg transition"
-                    >
-                      <LogOut className="w-3.5 h-3.5 text-teal-400" />
-                      <span>Switch to Pet Owner View</span>
-                    </button>
-                    <button
                       onClick={() => {
                         setVetDropdownOpen(false);
                         signOut();

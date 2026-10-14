@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import {
   Pet,
   Clinic,
@@ -19,6 +20,7 @@ import {
   AdoptionInquiry,
   ShelterAnimalRecord,
   LostPetContactRequest,
+  ProviderServiceType,
 } from '../types';
 
 import {
@@ -379,8 +381,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Notifications
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+  const { profile } = useAuth();
+
+  // Notifications Store
+  const [rawNotifications, setRawNotifications] = useState<NotificationItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
       return saved ? deduplicateById(JSON.parse(saved)) : INITIAL_NOTIFICATIONS;
@@ -388,6 +392,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return INITIAL_NOTIFICATIONS;
     }
   });
+
+  // Filtered Notifications based on authenticated profile & provider type
+  const notifications = useMemo(() => {
+    if (!profile) return rawNotifications;
+
+    if (profile.role === 'service_provider') {
+      const myProviderType = profile.providerType || 'veterinary_clinic';
+      const myClinicId = profile.clinicId;
+
+      return rawNotifications.filter((n) => {
+        // Exclude notifications meant for other roles
+        if (n.targetRole === 'pet_owner') return false;
+        if (n.targetRole === 'veterinarian') return false;
+        if (n.targetRole === 'shelter_rescuer' && myProviderType !== 'rescue_shelter') return false;
+
+        // If targeted to a specific provider type (e.g. 'grooming_salon')
+        if (n.targetProviderType && n.targetProviderType !== myProviderType) {
+          return false;
+        }
+
+        // If targeted to a specific clinic
+        if (n.targetClinicId && myClinicId && n.targetClinicId !== myClinicId) {
+          if (n.targetProviderType && n.targetProviderType === myProviderType) {
+            return true;
+          }
+          return false;
+        }
+
+        if (n.targetRole === 'service_provider') return true;
+        if (n.targetRole === 'all') return true;
+
+        return false;
+      });
+    }
+
+    if (profile.role === 'pet_owner') {
+      return rawNotifications.filter((n) => {
+        if (
+          n.targetRole === 'service_provider' ||
+          n.targetRole === 'veterinarian' ||
+          n.targetRole === 'shelter_rescuer'
+        ) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    if (profile.role === 'veterinarian') {
+      return rawNotifications.filter((n) => {
+        if (n.targetRole === 'pet_owner') return false;
+        if (n.targetProviderType === 'grooming_salon') return false;
+        if (n.targetRole === 'shelter_rescuer') return false;
+        return true;
+      });
+    }
+
+    if (profile.role === 'shelter_rescuer') {
+      return rawNotifications.filter((n) => {
+        if (n.targetRole === 'pet_owner') return false;
+        if (n.targetProviderType === 'grooming_salon') return false;
+        return (
+          n.targetRole === 'shelter_rescuer' ||
+          n.targetProviderType === 'rescue_shelter' ||
+          n.targetRole === 'all'
+        );
+      });
+    }
+
+    return rawNotifications;
+  }, [rawNotifications, profile?.role, profile?.providerType, profile?.clinicId]);
 
   // Lost Pets
   const [lostPets, setLostPets] = useState<LostPetReport[]>(() => {
@@ -793,9 +868,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(rawNotifications));
     } catch {}
-  }, [notifications]);
+  }, [rawNotifications]);
 
   useEffect(() => {
     try {
@@ -857,7 +932,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         read: false,
         badge: 'Sync',
       };
-      setNotifications((prev) => [newNotif, ...prev]);
+      setRawNotifications((prev) => [newNotif, ...prev]);
     }, 1200);
   };
 
@@ -1006,10 +1081,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    const targetClinic = clinics.find((c) => c.id === aptData.clinicId);
+    const targetProviderType: ProviderServiceType =
+      targetClinic?.type === 'groomer'
+        ? 'grooming_salon'
+        : targetClinic?.type === 'shelter'
+        ? 'rescue_shelter'
+        : targetClinic?.type === 'salon'
+        ? 'grooming_salon'
+        : 'veterinary_clinic';
+
     const newApt: Appointment = {
       ...aptData,
       id: generateId('apt'),
-      status: 'scheduled',
+      status: 'requested',
       queuePosition: 2,
       estimatedWaitMins: 15,
       createdAt: new Date().toISOString(),
@@ -1019,17 +1104,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setAppointments((prev) => deduplicateById([newApt, ...prev]));
 
+    // Notification of request appears on the selected service provider ONLY!
     const notif: NotificationItem = {
       id: generateId('notif'),
       type: 'appointment',
-      title: 'Appointment Booked!',
-      description: `Visit scheduled for ${newApt.petName} at ${newApt.clinicName} on ${newApt.date} at ${newApt.time}. Total: ${formatPrice(newApt.baseCostUSD)}.`,
+      title: `New Appointment Request: ${newApt.petName}`,
+      description: `${newApt.ownerName || 'Pet parent'} requested a ${newApt.serviceName} session on ${newApt.date} at ${newApt.time}. Total: ${formatPrice(newApt.baseCostUSD)}.`,
       timestamp: 'Just now',
       read: false,
-      actionTab: 'tracker',
-      badge: 'New',
+      actionTab: 'bookings',
+      badge: 'New Request',
+      targetRole: 'service_provider',
+      targetClinicId: newApt.clinicId,
+      targetProviderType: targetProviderType,
+      appointmentId: newApt.id,
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
     return { appointment: newApt };
   };
 
@@ -1060,6 +1150,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((a) => (a.id === id ? { ...a, status: 'scheduled' } : a))
     );
 
+    // Mark the provider's request notification as read
+    setRawNotifications((prev) =>
+      prev.map((n) => (n.appointmentId === id ? { ...n, read: true } : n))
+    );
+
+    // Send confirmation to the pet owner only
     const notif: NotificationItem = {
       id: generateId('notif'),
       type: 'appointment',
@@ -1069,8 +1165,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false,
       actionTab: 'tracker',
       badge: 'Approved',
+      targetRole: 'pet_owner',
+      appointmentId: apt.id,
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
   };
 
   const declineAppointment = (id: string, reason: string) => {
@@ -1079,21 +1177,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setAppointments((prev) =>
       prev.map((a) =>
-        a.id === id ? { ...a, status: 'cancelled', rejectionReason: reason } : a
+        a.id === id ? { ...a, status: 'declined', rejectionReason: reason } : a
       )
     );
 
+    // Mark provider's request notification as read
+    setRawNotifications((prev) =>
+      prev.map((n) => (n.appointmentId === id ? { ...n, read: true } : n))
+    );
+
+    // Send notification to pet owner only
     const notif: NotificationItem = {
       id: generateId('notif'),
       type: 'appointment',
       title: `Appointment Update: ${apt.petName}`,
-      description: `Appointment at ${apt.clinicName} was declined: "${reason}". Please choose another date or contact reception.`,
+      description: `${apt.clinicName} was unable to accommodate your requested slot: "${reason}". Please choose another date or contact reception.`,
       timestamp: 'Just now',
       read: false,
       actionTab: 'book',
-      badge: 'Cancelled',
+      badge: 'Declined',
+      targetRole: 'pet_owner',
+      appointmentId: apt.id,
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
   };
 
   const rescheduleAppointment = (
@@ -1129,9 +1235,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: 'Just now',
       read: false,
       actionTab: 'tracker',
-      badge: 'Rescheduled',
+      targetRole: 'pet_owner',
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
     return { success: true };
   };
 
@@ -1161,8 +1267,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false,
       actionTab: 'records',
       badge: 'Completed',
+      targetRole: 'pet_owner',
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
   };
 
   const cancelAppointment = (id: string) => {
@@ -1190,8 +1297,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         read: false,
         actionTab: 'records',
         badge: 'Vaccine',
+        targetRole: 'pet_owner',
       };
-      setNotifications((prev) => deduplicateById([notif, ...prev]));
+      setRawNotifications((prev) => deduplicateById([notif, ...prev]));
     }
   };
 
@@ -1282,8 +1390,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         read: false,
         actionTab: 'records',
         badge: 'Medical',
+        targetRole: 'pet_owner',
       };
-      setNotifications((prev) => deduplicateById([notif, ...prev]));
+      setRawNotifications((prev) => deduplicateById([notif, ...prev]));
     }
   };
 
@@ -1363,15 +1472,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Notifications
   const markNotificationAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setRawNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setRawNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const clearNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setRawNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   const sendSimulatedPushNotification = (title: string, body: string, actionTab?: string) => {
@@ -1384,8 +1493,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false,
       actionTab: actionTab || 'tracker',
       badge: 'Alert',
+      targetRole: 'pet_owner',
     };
-    setNotifications((prev) => deduplicateById([newNotif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([newNotif, ...prev]));
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
@@ -1425,8 +1535,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false,
       actionTab: 'shelters',
       badge: 'Radar',
+      targetRole: 'pet_owner',
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
   };
 
   const clearOfflineCache = () => {
@@ -1483,8 +1594,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: 'Just now',
       read: false,
       badge: 'Location',
+      targetRole: 'all',
     };
-    setNotifications((prev) => deduplicateById([notif, ...prev]));
+    setRawNotifications((prev) => deduplicateById([notif, ...prev]));
   };
 
   const setCountryByCode = (code: string) => {

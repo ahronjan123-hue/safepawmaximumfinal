@@ -33,13 +33,11 @@ import { Species, ShelterAnimalRecord } from '../../types';
 interface ShelterDashboardViewProps {
   onOpenNotifications?: () => void;
   onOpenSettings?: () => void;
-  onSwitchRole?: () => void;
 }
 
 export const ShelterDashboardView: React.FC<ShelterDashboardViewProps> = ({
   onOpenNotifications,
   onOpenSettings,
-  onSwitchRole,
 }) => {
   const { profile, signOut } = useAuth();
   const {
@@ -208,14 +206,6 @@ export const ShelterDashboardView: React.FC<ShelterDashboardViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
-            {onSwitchRole && (
-              <button
-                onClick={onSwitchRole}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs font-semibold text-stone-300 transition cursor-pointer"
-              >
-                <span>Switch View</span>
-              </button>
-            )}
 
             <button
               onClick={() => signOut()}

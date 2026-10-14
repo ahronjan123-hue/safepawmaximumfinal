@@ -39,12 +39,13 @@ import { VetRescheduleModal } from './components/vet/VetRescheduleModal';
 import { ProviderPortalDashboard } from './components/provider/ProviderPortalDashboard';
 import { ShelterDashboardView } from './components/shelter/ShelterDashboardView';
 import { PublicHomePage } from './components/views/PublicHomePage';
+import { Sidebar } from './components/Sidebar';
 import { Appointment, UserRole } from './types';
 
 import { Shield, Globe, Settings, WifiOff, Stethoscope, LogOut, Lock, AlertTriangle } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
-  const { user, profile, isLoading, signOut, switchRole, loginAsDemoUser } = useAuth();
+  const { user, profile, isLoading, signOut, loginAsDemoUser } = useAuth();
 
   const {
     currentRole,
@@ -72,7 +73,8 @@ const MainLayout: React.FC = () => {
   const [reportLostPetOpen, setReportLostPetOpen] = useState(false);
   const [exportPassportOpen, setExportPassportOpen] = useState(false);
   const [vetLoginModalOpen, setVetLoginModalOpen] = useState(false);
-  const [showProviderPortal, setShowProviderPortal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state for Veterinarian
   const [vetConsultationOpen, setVetConsultationOpen] = useState(false);
@@ -87,7 +89,6 @@ const MainLayout: React.FC = () => {
       if (currentRole !== 'pet_owner') {
         setCurrentRole('pet_owner');
       }
-      setShowProviderPortal(false);
       return;
     }
 
@@ -102,7 +103,6 @@ const MainLayout: React.FC = () => {
       if (currentRole !== 'shelter_rescuer') {
         setCurrentRole('shelter_rescuer');
       }
-      setShowProviderPortal(false);
       return;
     }
 
@@ -307,7 +307,6 @@ const MainLayout: React.FC = () => {
         <ShelterDashboardView
           onOpenNotifications={() => setNotificationsOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
-          onSwitchRole={() => switchRole('pet_owner')}
         />
         <NotificationDrawer
           isOpen={notificationsOpen}
@@ -322,18 +321,9 @@ const MainLayout: React.FC = () => {
   }
 
   // 5B. SERVICE PROVIDER PORTAL DASHBOARD (Veterinary Clinics, Spa & Grooming, Shelters & Rescue)
-  if (
-    profile.role === 'service_provider' ||
-    (showProviderPortal && profile.role !== 'veterinarian')
-  ) {
+  if (profile.role === 'service_provider') {
     return (
       <ProviderPortalDashboard
-        onBackToPetOwner={() => {
-          setShowProviderPortal(false);
-          if (profile.role === 'service_provider') {
-            switchRole('pet_owner');
-          }
-        }}
         onOpenNotifications={() => setNotificationsOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
@@ -413,24 +403,40 @@ const MainLayout: React.FC = () => {
     );
   }
 
-  // 6. PET OWNER INTERFACE
   return (
-    <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col font-sans selection:bg-teal-100 selection:text-teal-900">
-      {/* Sticky Header with Navigation, Pet Switcher, Settings & Provider Portal link */}
-      <Header
-        onOpenNotifications={() => setNotificationsOpen(true)}
+    <div className="min-h-screen bg-stone-100/70 text-stone-900 flex font-sans selection:bg-teal-100 selection:text-teal-900">
+      {/* Sleek Left Sidebar */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         onOpenNewPetModal={() => setNewPetModalOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenVetPortal={() => setShowProviderPortal(true)}
+        onOpenNotifications={() => setNotificationsOpen(true)}
       />
 
-      {/* Offline Storage Status & Sync Banner */}
-      <OfflineBanner />
+      {/* Main Content Area with responsive sidebar offset */}
+      <div
+        className={`flex-1 flex flex-col min-w-0 min-h-screen transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-68'
+        }`}
+      >
+        {/* Streamlined Top Header */}
+        <Header
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onOpenNotifications={() => setNotificationsOpen(true)}
+          onOpenNewPetModal={() => setNewPetModalOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
 
-      {/* Main App Content View */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
-        {renderPetOwnerTab()}
-      </main>
+        {/* Offline Storage Status & Sync Banner */}
+        <OfflineBanner />
+
+        {/* Main App Content View */}
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {renderPetOwnerTab()}
+        </main>
 
       {/* Modals & Overlays */}
       <VetLoginModal
@@ -593,6 +599,7 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 };

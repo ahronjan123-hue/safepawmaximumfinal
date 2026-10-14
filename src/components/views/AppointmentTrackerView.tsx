@@ -182,13 +182,19 @@ export const AppointmentTrackerView: React.FC = () => {
 
   const filteredBookingsList = appointments.filter((apt) => {
     if (bookingFilter === 'upcoming') {
-      return apt.status === 'scheduled' || apt.status === 'checked_in' || apt.status === 'in_consultation' || apt.status === 'prescriptions_ready';
+      return (
+        apt.status === 'requested' ||
+        apt.status === 'scheduled' ||
+        apt.status === 'checked_in' ||
+        apt.status === 'in_consultation' ||
+        apt.status === 'prescriptions_ready'
+      );
     }
     if (bookingFilter === 'completed') {
       return apt.status === 'completed';
     }
     if (bookingFilter === 'cancelled') {
-      return apt.status === 'cancelled';
+      return apt.status === 'cancelled' || apt.status === 'declined';
     }
     return true;
   });
@@ -259,10 +265,16 @@ export const AppointmentTrackerView: React.FC = () => {
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-stone-800 relative z-10">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30">
                           {activeAppointment.serviceName}
                         </span>
+                        {activeAppointment.status === 'requested' && (
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 flex items-center gap-1">
+                            <Clock className="w-3 h-3 animate-pulse" />
+                            <span>Pending Provider Approval</span>
+                          </span>
+                        )}
                         {activeAppointment.paymentStatus === 'paid' ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                             Paid Online ✓
@@ -282,6 +294,17 @@ export const AppointmentTrackerView: React.FC = () => {
                       <p className="text-xs text-stone-400 mt-1">
                         Attending Doctor: <strong className="text-stone-200">{activeAppointment.vetName}</strong> · Scheduled: {activeAppointment.date} at {activeAppointment.time}
                       </p>
+                      {activeAppointment.status === 'requested' && (
+                        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+                          <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                          <div>
+                            <strong className="text-amber-300 block font-bold">Appointment Request Submitted — Awaiting Confirmation</strong>
+                            <span className="text-[11px] text-amber-200/90">
+                              Your request has been dispatched to <strong>{activeAppointment.clinicName}</strong>. The provider received a notification and will confirm your booking.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex sm:flex-col items-end gap-2">
@@ -492,14 +515,16 @@ export const AppointmentTrackerView: React.FC = () => {
                         </span>
                         <span
                           className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                            isCompleted
+                            apt.status === 'requested'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : isCompleted
                               ? 'bg-emerald-100 text-emerald-800'
                               : isCancelled
                               ? 'bg-rose-100 text-rose-800'
                               : 'bg-teal-100 text-teal-900'
                           }`}
                         >
-                          {apt.status.replace('_', ' ')}
+                          {apt.status === 'requested' ? 'Requested (Pending)' : apt.status.replace('_', ' ')}
                         </span>
                         {apt.paymentStatus === 'paid' ? (
                           <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
