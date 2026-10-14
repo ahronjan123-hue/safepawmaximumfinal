@@ -344,7 +344,106 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
   },
 ];
 
-export const INITIAL_CONVERSATIONS: Conversation[] = [];
+export const INITIAL_CONVERSATIONS: Conversation[] = [
+  {
+    id: 'conv-vip-buddy',
+    clinicId: '00000000-0000-0000-0000-000000000001',
+    clinicName: 'Vets in Practice Animal Hospital (VIP)',
+    clinicAvatar: 'https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=800&q=80',
+    petId: 'pet-1',
+    petName: 'Buddy',
+    ownerName: 'Sophia Rodriguez',
+    lastMessage: 'Thank you doctor! We will be there on time.',
+    lastTimestamp: '8:45 AM',
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'msg-1',
+        sender: 'user',
+        text: "Hello Dr. Christian, we would like to schedule Buddy's annual DHPP core vaccination booster and physical examination.",
+        timestamp: 'Yesterday 2:15 PM',
+      },
+      {
+        id: 'msg-2',
+        sender: 'clinic',
+        text: 'Hello Sophia! We would be delighted to see Buddy. Please send through your appointment request with your preferred morning slot.',
+        timestamp: 'Yesterday 2:30 PM',
+      },
+      {
+        id: 'msg-3',
+        sender: 'user',
+        text: '📅 Appointment Request: Core Vaccine Booster (Anti-Rabies & 6-in-1 DHPP) for Buddy on Oct 18, 2026 at 10:00 AM. Total: $16.00. Note: Routine annual booster and dental check.',
+        timestamp: 'Yesterday 2:35 PM',
+        attachment: {
+          type: 'record',
+          name: 'Booking Request: Core Vaccine Booster (Oct 18 · 10:00 AM)',
+        },
+      },
+      {
+        id: 'msg-4',
+        sender: 'clinic',
+        text: '✅ Appointment Confirmed! We look forward to seeing Buddy on Oct 18, 2026 at 10:00 AM. Please bring his vaccination passport booklet.',
+        timestamp: 'Yesterday 3:00 PM',
+        attachment: {
+          type: 'record',
+          name: 'Confirmed: Core Vaccine Booster (Oct 18 · 10:00 AM)',
+        },
+      },
+      {
+        id: 'msg-5',
+        sender: 'user',
+        text: 'Thank you doctor! We will be there on time.',
+        timestamp: 'Today 8:45 AM',
+      },
+    ],
+  },
+  {
+    id: 'conv-groom-milo',
+    clinicId: 'provider-grooming-01',
+    clinicName: 'Paws & Bubbles Pet Grooming Lounge',
+    clinicAvatar: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=800&q=80',
+    petId: 'pet-milo',
+    petName: 'Milo',
+    ownerName: 'Paolo Reyes',
+    lastMessage: '✅ Appointment Confirmed! Bay 2 is reserved for Milo with Stylist Maricel on Oct 19 at 11:00 AM.',
+    lastTimestamp: 'Yesterday',
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'msg-g-1',
+        sender: 'user',
+        text: 'Hi team! Milo has sensitive skin around his paws. Does the Asian Fusion styling include hypoallergenic tearless wash?',
+        timestamp: '2 days ago',
+      },
+      {
+        id: 'msg-g-2',
+        sender: 'clinic',
+        text: 'Hello Paolo! Yes, our Blueberry Facial and De-shedding spa includes organic oatmeal tearless wash, ideal for sensitive skin.',
+        timestamp: '2 days ago',
+      },
+      {
+        id: 'msg-g-3',
+        sender: 'user',
+        text: '📅 Appointment Request: De-shedding & Blueberry Facial Soak for Milo on Oct 19, 2026 at 11:00 AM. Total: $38.00. Note: Low-heat drying requested.',
+        timestamp: 'Yesterday 10:15 AM',
+        attachment: {
+          type: 'record',
+          name: 'Booking Request: De-shedding & Blueberry Facial (Oct 19 · 11:00 AM)',
+        },
+      },
+      {
+        id: 'msg-g-4',
+        sender: 'clinic',
+        text: '✅ Appointment Confirmed! Bay 2 is reserved for Milo with Stylist Maricel on Oct 19 at 11:00 AM.',
+        timestamp: 'Yesterday 11:00 AM',
+        attachment: {
+          type: 'record',
+          name: 'Confirmed: Spa & Styling Bay 2 (Oct 19 · 11:00 AM)',
+        },
+      },
+    ],
+  },
+];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {

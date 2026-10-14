@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ProviderServiceType } from '../../types';
+import { ProviderServiceType, Pet } from '../../types';
+import { useApp } from '../../context/AppContext';
+import { ExportPassportModal } from '../modals/ExportPassportModal';
 import {
   Users,
   Search,
@@ -14,6 +16,7 @@ import {
   MessageSquare,
   AlertCircle,
   Home,
+  FileText,
 } from 'lucide-react';
 
 interface ProviderClientsViewProps {
@@ -27,8 +30,11 @@ export const ProviderClientsView: React.FC<ProviderClientsViewProps> = ({
   onShowToast,
   formatPrice,
 }) => {
+  const { pets } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [shelterTab, setShelterTab] = useState<'adopters' | 'fosters' | 'volunteers'>('adopters');
+  const [selectedPassportPet, setSelectedPassportPet] = useState<Pet | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
 
   // 1. Clinical Pet Owners
   const [clinicClients] = useState([
@@ -287,10 +293,40 @@ export const ProviderClientsView: React.FC<ProviderClientsViewProps> = ({
                   Send Reminder
                 </button>
                 <button
-                  onClick={() => onShowToast(`Complete medical records opened for ${client.name}`)}
-                  className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition cursor-pointer shadow-sm"
+                  onClick={() => {
+                    const matched =
+                      pets.find((p) =>
+                        client.pets.some(
+                          (cp) =>
+                            cp.toLowerCase().trim() === p.name.toLowerCase().trim() ||
+                            p.name.toLowerCase().includes(cp.toLowerCase())
+                        )
+                      ) || {
+                        id: `client-pet-${client.id}`,
+                        name: client.pets[0] || 'Companion Pet',
+                        species: 'Dog',
+                        breed: 'Golden Retriever',
+                        ageYears: 3,
+                        birthDate: '2023-05-10',
+                        gender: 'Male',
+                        neutered: true,
+                        weightKg: 14.5,
+                        microchipId: '985141002341992',
+                        ownerName: client.name,
+                        ownerPhone: client.phone,
+                        allergies: [],
+                        chronicConditions: [],
+                        registeredDate: '2024-01-15',
+                        photoUrl:
+                          'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=400&q=80',
+                      };
+                    setSelectedPassportPet(matched as Pet);
+                    setIsPassportOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
-                  View Passport
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>View Passport</span>
                 </button>
               </div>
             </div>
@@ -456,6 +492,16 @@ export const ProviderClientsView: React.FC<ProviderClientsViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Client Pet Official Health Passport Modal */}
+      <ExportPassportModal
+        isOpen={isPassportOpen}
+        onClose={() => {
+          setIsPassportOpen(false);
+          setSelectedPassportPet(null);
+        }}
+        pet={selectedPassportPet}
+      />
     </div>
   );
 };

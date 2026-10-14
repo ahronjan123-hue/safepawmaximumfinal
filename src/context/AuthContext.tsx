@@ -36,6 +36,10 @@ export interface UserProfile {
   specialization?: string;
   bio?: string;
   phone?: string;
+  address?: string;
+  hours?: string;
+  emergencyAvailable?: boolean;
+  services?: { name: string; priceUSD: number; active: boolean }[];
   createdAt?: string;
   updatedAt?: string;
 }

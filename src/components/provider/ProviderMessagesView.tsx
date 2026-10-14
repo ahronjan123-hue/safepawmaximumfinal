@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ProviderServiceType, Conversation } from '../../types';
+import { ProviderServiceType, Conversation, Pet } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { PatientChartModal } from '../modals/PatientChartModal';
 import {
   MessageSquare,
   Search,
@@ -16,6 +17,8 @@ import {
   Scissors,
   Home,
   CheckCircle2,
+  FileText,
+  BadgeCheck,
 } from 'lucide-react';
 
 interface ProviderMessagesViewProps {
@@ -33,6 +36,10 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
   const [selectedConvId, setSelectedConvId] = useState<string>('');
+
+  // Patient chart modal state
+  const [isChartOpen, setIsChartOpen] = useState(false);
+  const [chartPet, setChartPet] = useState<Pet | null>(null);
 
   // Automatically select the first available conversation if none selected
   useEffect(() => {
@@ -86,6 +93,33 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
 
   const guardianName = activeConversation ? getConversationOwner(activeConversation) : 'Sophia Rodriguez';
 
+  const handleOpenChartForPet = () => {
+    if (!activeConversation) return;
+    const petObj: Pet = linkedPet || {
+      id: activeConversation.petId || 'pet-' + activeConversation.id,
+      name: activeConversation.petName || 'Patient',
+      species: 'Dog',
+      breed: 'Companion Pet',
+      ageYears: 3,
+      birthDate: '2023-04-12',
+      gender: 'Male',
+      neutered: true,
+      weightKg: 14,
+      allergies: [],
+      chronicConditions: [],
+      temperament: 'Calm & cooperative',
+      dietaryNotes: 'Standard maintenance diet',
+      registeredDate: '2024-01-15',
+      microchipId: '985141002341992',
+      photoUrl: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=400&q=80',
+      ownerName: guardianName,
+      ownerPhone: '+63 917 882 1290',
+    };
+    setChartPet(petObj);
+    setIsChartOpen(true);
+    onShowToast(`Opened clinical EMR chart for ${petObj.name}`);
+  };
+
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim() || !activeConversation) return;
@@ -137,14 +171,14 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search patient, guardian, or clinic..."
+              placeholder="Search pet guardian, patient, or message..."
               className="w-full bg-stone-900 border border-stone-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-hidden focus:border-teal-500"
             />
           </div>
 
           <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-stone-400 px-1 pt-1">
             <span>Conversations ({filteredConversations.length})</span>
-            <span className="text-teal-400 font-mono">Live</span>
+            <span className="text-teal-400 font-mono">Live Sync</span>
           </div>
 
           {/* Thread list */}
@@ -160,6 +194,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                 const petAppt = appointments.find((a) => a.petId === conv.petId || a.petName === conv.petName);
                 const ownerName = getConversationOwner(conv);
                 const initial = ownerName.charAt(0).toUpperCase() || 'O';
+                const hasApt = conv.lastMessage?.includes('📅') || conv.lastMessage?.includes('Appointment');
 
                 return (
                   <button
@@ -189,7 +224,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                       <span className="text-teal-300 font-semibold">Pet: {conv.petName}</span>
                       <span className="text-stone-600">·</span>
                       <span className="truncate">{conv.clinicName}</span>
-                      {petAppt && (
+                      {(petAppt || hasApt) && (
                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30 font-semibold shrink-0">
                           Booked
                         </span>
@@ -211,7 +246,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
           <div className="lg:col-span-8 flex flex-col justify-between p-5 min-w-0 bg-stone-950/70">
             {/* Thread Header */}
             <div className="border-b border-stone-800 pb-3 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center font-black text-sm shrink-0">
                     {guardianName.charAt(0).toUpperCase() || 'O'}
@@ -237,9 +272,18 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {/* OPEN CHART CTA in Chat Header */}
+                  <button
+                    onClick={handleOpenChartForPet}
+                    className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-stone-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Open Patient Chart</span>
+                  </button>
+
                   <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Pet Owner Direct Channel
+                    Pet Owner Direct
                   </span>
                 </div>
               </div>
@@ -253,9 +297,17 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                       <strong>Appointment Acquired:</strong> {linkedAppointment.date} at {linkedAppointment.time} · {linkedAppointment.serviceName}
                     </span>
                   </div>
-                  <span className="text-[11px] font-bold capitalize px-2 py-0.5 rounded bg-teal-900 border border-teal-700 text-teal-200 shrink-0">
-                    {linkedAppointment.status.replace('_', ' ')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold capitalize px-2 py-0.5 rounded bg-teal-900 border border-teal-700 text-teal-200 shrink-0">
+                      {linkedAppointment.status.replace('_', ' ')}
+                    </span>
+                    <button
+                      onClick={handleOpenChartForPet}
+                      className="text-[11px] font-bold text-teal-300 hover:underline cursor-pointer"
+                    >
+                      View Chart →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -270,6 +322,12 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
               ) : (
                 activeConversation.messages.map((m) => {
                   const isFromClinic = m.sender === 'clinic';
+                  const isAppointment =
+                    m.text.includes('Appointment Request') ||
+                    m.text.includes('Appointment Confirmed') ||
+                    m.text.includes('📅') ||
+                    m.text.includes('✅ Appointment') ||
+                    m.attachment?.type === 'record';
 
                   return (
                     <div
@@ -282,15 +340,53 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                         </span>
                         <span className="text-[9px] text-stone-500 font-mono">{m.timestamp}</span>
                       </div>
-                      <div
-                        className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-md ${
-                          isFromClinic
-                            ? 'bg-teal-600 text-white rounded-br-xs'
-                            : 'bg-stone-900 text-stone-100 border border-stone-800 rounded-bl-xs'
-                        }`}
-                      >
-                        {m.text}
-                      </div>
+
+                      {/* Message Bubble (Interactive appointment card or standard message) */}
+                      {isAppointment ? (
+                        <div
+                          className={`max-w-[90%] sm:max-w-[78%] rounded-2xl p-4 text-xs shadow-xl space-y-2.5 ${
+                            isFromClinic
+                              ? 'bg-teal-950/80 border-2 border-teal-500/60 text-white rounded-br-xs'
+                              : 'bg-stone-900/90 border-2 border-amber-500/50 text-stone-100 rounded-bl-xs'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between border-b border-stone-800/80 pb-2">
+                            <div className="flex items-center gap-2 font-extrabold text-teal-300">
+                              <Calendar className="w-4 h-4 text-teal-400" />
+                              <span>Clinical Appointment Event</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                              {m.text.includes('Confirmed') ? 'Confirmed' : 'Requested'}
+                            </span>
+                          </div>
+
+                          <p className="text-stone-200 leading-relaxed font-medium">{m.text}</p>
+
+                          <div className="flex items-center justify-between pt-1 text-[11px]">
+                            <span className="text-stone-400">
+                              Patient: <strong className="text-white">{activeConversation.petName}</strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleOpenChartForPet}
+                              className="px-2.5 py-1 rounded-lg bg-teal-500 hover:bg-teal-400 text-stone-950 font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span>Open Chart</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-md ${
+                            isFromClinic
+                              ? 'bg-teal-600 text-white rounded-br-xs'
+                              : 'bg-stone-900 text-stone-100 border border-stone-800 rounded-bl-xs'
+                          }`}
+                        >
+                          {m.text}
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -306,7 +402,7 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
                 type="button"
                 onClick={() =>
                   setReplyText(
-                    `We have reviewed and confirmed your appointment for ${activeConversation.petName}. Please ensure ${activeConversation.petName} is fasted 2 hours prior to the visit if bloodwork or sedation is scheduled.`
+                    `We have reviewed and confirmed your appointment for ${activeConversation.petName}. Please ensure ${activeConversation.petName} has fasted 2 hours prior to the visit if bloodwork or sedation is scheduled.`
                   )
                 }
                 className="px-2.5 py-1 bg-stone-900 hover:bg-stone-850 border border-stone-800 text-stone-300 rounded-lg whitespace-nowrap transition cursor-pointer"
@@ -368,6 +464,18 @@ export const ProviderMessagesView: React.FC<ProviderMessagesViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* PATIENT CHART MODAL */}
+      <PatientChartModal
+        isOpen={isChartOpen}
+        onClose={() => {
+          setIsChartOpen(false);
+          setChartPet(null);
+        }}
+        pet={chartPet}
+        appointment={linkedAppointment}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 };

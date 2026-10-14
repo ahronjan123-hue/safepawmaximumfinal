@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ProviderServiceType, Pet } from '../../types';
+import { ExportPassportModal } from '../modals/ExportPassportModal';
 import {
   Heart,
   Search,
@@ -28,6 +29,8 @@ export const ProviderPetsView: React.FC<ProviderPetsViewProps> = ({
   onShowToast,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPassportPet, setSelectedPassportPet] = useState<Pet | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
 
   // 1. Spa & Grooming Pet Profiles
   const [groomingPets] = useState([
@@ -218,10 +221,14 @@ export const ProviderPetsView: React.FC<ProviderPetsViewProps> = ({
 
               <div className="pt-2 border-t border-stone-800 flex items-center justify-between gap-2">
                 <button
-                  onClick={() => onShowToast(`Digital pet health passport opened for ${pet.name}`)}
-                  className="w-full py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 rounded-xl text-xs font-bold transition cursor-pointer"
+                  onClick={() => {
+                    setSelectedPassportPet(pet);
+                    setIsPassportOpen(true);
+                  }}
+                  className="w-full py-2 bg-teal-500 hover:bg-teal-400 text-stone-950 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                 >
-                  View Medical Passport
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>View Medical Passport</span>
                 </button>
               </div>
             </div>
@@ -344,6 +351,16 @@ export const ProviderPetsView: React.FC<ProviderPetsViewProps> = ({
           ))}
         </div>
       )}
+
+      {/* Official Digital Medical Passport Modal */}
+      <ExportPassportModal
+        isOpen={isPassportOpen}
+        onClose={() => {
+          setIsPassportOpen(false);
+          setSelectedPassportPet(null);
+        }}
+        pet={selectedPassportPet}
+      />
     </div>
   );
 };

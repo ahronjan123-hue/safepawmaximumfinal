@@ -15,6 +15,8 @@ import {
   Shield,
 } from 'lucide-react';
 
+import { RateProviderModal } from '../modals/RateProviderModal';
+
 export const ClinicsDirectoryView: React.FC = () => {
   const {
     clinics,
@@ -31,6 +33,7 @@ export const ClinicsDirectoryView: React.FC = () => {
   const [selectedType, setSelectedType] = useState<ProviderType | 'all'>('all');
   const [onlyEmergency, setOnlyEmergency] = useState(false);
   const [activeModalClinic, setActiveModalClinic] = useState<Clinic | null>(null);
+  const [ratingClinic, setRatingClinic] = useState<Clinic | null>(null);
 
   const filteredClinics = useMemo(() => {
     return clinics.filter((c) => {
@@ -195,10 +198,20 @@ export const ClinicsDirectoryView: React.FC = () => {
                 <div className="p-5 space-y-4">
                   {/* Rating & Operating Hours */}
                   <div className="flex items-center justify-between text-xs pb-3 border-b border-stone-100">
-                    <div className="flex items-center gap-1.5 text-stone-900 font-semibold">
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
-                      <span>{clinic.rating}</span>
-                      <span className="text-stone-400 font-normal">({clinic.reviewsCount} reviews)</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-stone-900 font-semibold">
+                        <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                        <span>{clinic.rating}</span>
+                        <span className="text-stone-400 font-normal">({clinic.reviewsCount} reviews)</span>
+                      </div>
+                      <button
+                        onClick={() => setRatingClinic(clinic)}
+                        className="px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
+                        title="Rate this care provider"
+                      >
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                        <span>Rate Provider</span>
+                      </button>
                     </div>
                     <div className="flex items-center gap-1 text-stone-500">
                       <Clock className="w-3.5 h-3.5 text-stone-400" />
@@ -342,14 +355,26 @@ export const ClinicsDirectoryView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-stone-200 flex gap-3">
+              <div className="pt-3 border-t border-stone-200 flex flex-col sm:flex-row gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cl = activeModalClinic;
+                    setActiveModalClinic(null);
+                    setRatingClinic(cl);
+                  }}
+                  className="py-2.5 px-4 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                  <span>Rate & Review Clinic</span>
+                </button>
                 <button
                   onClick={() => {
                     const cid = activeModalClinic.id;
                     setActiveModalClinic(null);
                     handleBookClinic(cid);
                   }}
-                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-sm transition text-center"
+                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-sm transition text-center cursor-pointer"
                 >
                   Book Appointment Now
                 </button>
@@ -357,6 +382,16 @@ export const ClinicsDirectoryView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* RATE PROVIDER MODAL */}
+      {ratingClinic && (
+        <RateProviderModal
+          isOpen={Boolean(ratingClinic)}
+          onClose={() => setRatingClinic(null)}
+          providerId={ratingClinic.id}
+          providerName={ratingClinic.name}
+        />
       )}
     </div>
   );

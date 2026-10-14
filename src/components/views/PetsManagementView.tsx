@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   X,
   CheckCircle,
+  FileText,
 } from 'lucide-react';
 
 interface PetsManagementViewProps {
@@ -265,9 +266,11 @@ export const PetsManagementView: React.FC<PetsManagementViewProps> = ({
                     setSelectedPetId(pet.id);
                     onOpenExportPassportModal();
                   }}
-                  className="py-2 px-3 rounded-xl border border-stone-200 text-stone-700 hover:bg-stone-50 text-xs font-semibold transition text-center"
+                  className="py-2 px-3 rounded-xl border border-stone-200 text-stone-700 hover:bg-stone-50 text-xs font-semibold transition text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="View Official Medical Passport"
                 >
-                  Health Passport
+                  <FileText className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Medical Passport</span>
                 </button>
                 <button
                   onClick={() => {

@@ -24,6 +24,7 @@ import {
 export const AppointmentTrackerView: React.FC = () => {
   const {
     appointments,
+    pets,
     updateAppointmentStatus,
     rescheduleAppointment,
     cancelAppointment,
@@ -502,17 +503,39 @@ export const AppointmentTrackerView: React.FC = () => {
                 const isCompleted = apt.status === 'completed';
                 const isCancelled = apt.status === 'cancelled';
 
+                const matchedPet = pets.find((p) => p.id === apt.petId || p.name.toLowerCase() === apt.petName.toLowerCase());
+                const petPhoto = matchedPet?.photoUrl || (
+                  apt.petName.toLowerCase().includes('milo')
+                    ? 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=400&q=80'
+                    : apt.petName.toLowerCase().includes('bella')
+                    ? 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80'
+                    : 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=400&q=80'
+                );
+
                 return (
                   <div
                     key={apt.id}
                     className="p-5 sm:p-6 bg-white rounded-3xl border border-stone-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5 hover:shadow-sm transition"
                   >
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-bold text-stone-900">{apt.serviceName}</span>
-                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 font-semibold border border-teal-200">
-                          For {apt.petName}
+                    <div className="flex items-start gap-4 min-w-0">
+                      {/* PET PROFILE AVATAR (NOT TIME/DATE) */}
+                      <div className="relative shrink-0">
+                        <img
+                          src={petPhoto}
+                          alt={apt.petName}
+                          className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl object-cover border-2 border-teal-500/40 shadow-xs"
+                        />
+                        <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md text-[8px] font-black bg-teal-600 text-white uppercase tracking-wider">
+                          {matchedPet?.species || 'Pet'}
                         </span>
+                      </div>
+
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-base font-bold text-stone-900">{apt.serviceName}</span>
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 font-semibold border border-teal-200">
+                            {apt.petName} {matchedPet?.breed ? `(${matchedPet.breed})` : ''}
+                          </span>
                         <span
                           className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                             apt.status === 'requested'
@@ -570,6 +593,7 @@ export const AppointmentTrackerView: React.FC = () => {
                           <span className="text-stone-700 italic">"{apt.reviewComment}"</span>
                         </div>
                       )}
+                      </div>
                     </div>
 
                     {/* Action buttons depending on state */}
@@ -602,19 +626,20 @@ export const AppointmentTrackerView: React.FC = () => {
                         </>
                       )}
 
-                      {isCompleted && (
+                      {(isCompleted || isUpcoming) && (
                         <>
                           {!apt.reviewRating ? (
                             <button
                               onClick={() => setReviewingAppointment(apt)}
                               className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                             >
-                              <Star className="w-3.5 h-3.5" />
-                              <span>Rate & Review Booking</span>
+                              <Star className="w-3.5 h-3.5 fill-stone-950" />
+                              <span>Rate Provider</span>
                             </button>
                           ) : (
-                            <div className="text-xs text-stone-500 font-medium">
-                              ✓ Review Submitted
+                            <div className="text-xs text-amber-800 font-semibold flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                              <span>Rated {apt.reviewRating}★</span>
                             </div>
                           )}
                         </>

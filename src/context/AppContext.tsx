@@ -65,6 +65,7 @@ interface AppContextType {
 
   // Clinics & Appointments
   clinics: Clinic[];
+  updateClinic: (id: string, updates: Partial<Clinic>) => void;
   appointments: Appointment[];
   getVetAppointments: () => Appointment[];
   bookAppointment: (apt: Omit<Appointment, 'id' | 'createdAt' | 'status' | 'syncStatus'>) => { appointment?: Appointment; error?: string };
@@ -348,8 +349,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Clinics
-  const clinics = INITIAL_CLINICS;
+  // Clinics with persistent storage
+  const [clinics, setClinics] = useState<Clinic[]>(() => {
+    try {
+      const saved = localStorage.getItem('safepaw_clinics_v2');
+      return saved ? JSON.parse(saved) : INITIAL_CLINICS;
+    } catch {
+      return INITIAL_CLINICS;
+    }
+  });
+
+  const updateClinic = (id: string, updates: Partial<Clinic>) => {
+    setClinics((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      try {
+        localStorage.setItem('safepaw_clinics_v2', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save clinics to localStorage', err);
+      }
+      return updated;
+    });
+  };
 
   // Appointments
   const [appointments, setAppointments] = useState<Appointment[]>(() => {
@@ -375,7 +395,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
-      return saved ? deduplicateById(JSON.parse(saved)) : INITIAL_CONVERSATIONS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return deduplicateById(parsed);
+        }
+      }
+      return INITIAL_CONVERSATIONS;
     } catch {
       return INITIAL_CONVERSATIONS;
     }
@@ -1123,6 +1149,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       appointmentId: newApt.id,
     };
     setRawNotifications((prev) => deduplicateById([notif, ...prev]));
+
+    // Accurate synchronization with Messages thread:
+    const aptMsgText = `📅 Appointment Request: ${newApt.serviceName} for ${newApt.petName} on ${newApt.date} at ${newApt.time}. Total: ${formatPrice(newApt.baseCostUSD)}.${newApt.symptoms ? ' Note: ' + newApt.symptoms : ''}`;
+    const aptAttachment = {
+      type: 'record' as const,
+      name: `Booking Request: ${newApt.serviceName} (${newApt.date} · ${newApt.time})`,
+    };
+
+    setConversations((prev) => {
+      const existingIdx = prev.findIndex((c) => c.clinicId === newApt.clinicId);
+      const newMsg: ChatMessage = {
+        id: generateUUID(),
+        sender: 'user',
+        text: aptMsgText,
+        timestamp: 'Just now',
+        attachment: aptAttachment,
+      };
+
+      if (existingIdx >= 0) {
+        return prev.map((c, i) =>
+          i === existingIdx
+            ? {
+                ...c,
+                petId: newApt.petId || c.petId,
+                petName: newApt.petName,
+                ownerName: newApt.ownerName || c.ownerName,
+                lastMessage: `📅 ${newApt.serviceName} (${newApt.date})`,
+                lastTimestamp: 'Just now',
+                messages: deduplicateById([...c.messages, newMsg]),
+              }
+            : c
+        );
+      } else {
+        const newConv: Conversation = {
+          id: generateUUID(),
+          clinicId: newApt.clinicId,
+          clinicName: targetClinic?.name || newApt.clinicName,
+          clinicAvatar: targetClinic?.image || 'https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=600&q=80',
+          petId: newApt.petId,
+          petName: newApt.petName,
+          ownerName: newApt.ownerName || 'Sophia Rodriguez',
+          lastMessage: `📅 ${newApt.serviceName} (${newApt.date})`,
+          lastTimestamp: 'Just now',
+          unreadCount: 1,
+          messages: [newMsg],
+        };
+        return [newConv, ...prev];
+      }
+    });
+
     return { appointment: newApt };
   };
 
@@ -1172,6 +1248,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       appointmentId: apt.id,
     };
     setRawNotifications((prev) => deduplicateById([notif, ...prev]));
+
+    // Accurate synchronization: send confirmation message in conversation
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.clinicId === apt.clinicId || (apt.petId && c.petId === apt.petId)) {
+          const confirmMsg: ChatMessage = {
+            id: generateUUID(),
+            sender: 'clinic',
+            text: `✅ Appointment Confirmed! We look forward to seeing ${apt.petName} for ${apt.serviceName} on ${apt.date} at ${apt.time}.`,
+            timestamp: 'Just now',
+            attachment: {
+              type: 'record',
+              name: `Confirmed: ${apt.serviceName} (${apt.date} · ${apt.time})`,
+            },
+          };
+          return {
+            ...c,
+            lastMessage: `✅ Confirmed: ${apt.serviceName}`,
+            lastTimestamp: 'Just now',
+            messages: deduplicateById([...c.messages, confirmMsg]),
+          };
+        }
+        return c;
+      })
+    );
   };
 
   const declineAppointment = (id: string, reason: string) => {
@@ -1203,6 +1304,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       appointmentId: apt.id,
     };
     setRawNotifications((prev) => deduplicateById([notif, ...prev]));
+
+    // Accurate synchronization: send decline message in conversation
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.clinicId === apt.clinicId || (apt.petId && c.petId === apt.petId)) {
+          const declineMsg: ChatMessage = {
+            id: generateUUID(),
+            sender: 'clinic',
+            text: `❌ Appointment Update: Regrettably, we cannot confirm the requested slot for ${apt.petName} on ${apt.date} at ${apt.time} (${reason || 'Schedule full'}). Please select an alternative slot.`,
+            timestamp: 'Just now',
+          };
+          return {
+            ...c,
+            lastMessage: `❌ Declined: ${apt.serviceName}`,
+            lastTimestamp: 'Just now',
+            messages: deduplicateById([...c.messages, declineMsg]),
+          };
+        }
+        return c;
+      })
+    );
   };
 
   const rescheduleAppointment = (
@@ -1647,6 +1769,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Clinics & Appointments
         clinics,
+        updateClinic,
         appointments,
         getVetAppointments,
         bookAppointment,
